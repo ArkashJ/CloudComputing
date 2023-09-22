@@ -17,4 +17,3 @@ Make a virtual environment and run it in fish
 python3 -m venv env
 source venv/bin/activate.fish
 ```
-
