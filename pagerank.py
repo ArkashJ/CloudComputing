@@ -52,14 +52,27 @@ def iter_files_and_get_links():
         result = []
         for link in list_links:
             result.append(re.findall(pattern, link))
-        return result, len(result)
-
+        return result
+    
     #  Logic to iterate through the files and get the links
+    links_dict = {}
     for i in range(MAX_NUM_FILES):
         if os.path.exists(f"mini_internet/{i}.html"):
             html_link_res, res_len = get_html_from_file(f"mini_internet/{i}.html")
-            print(res_len, get_link_id_from_string(html_link_res))
+            links_dict[i] = get_link_id_from_string(html_link_res) 
+    return links_dict
+
+def construct_adjacency_matrix(links_dict: dict) -> list[list[int]]:
+    # The rows in the matrix are the outgoing links and the columns are the incoming links
+    # if the row has a 1, it means that the column has a link to the row otherwise 0
+    adj_mat = [[0 for i in range(MAX_NUM_FILES)] for j in range(MAX_NUM_FILES)]
+    for key, value in links_dict.items():
+        for link in value:
+            adj_mat[int(link[0])][key] = 1
+    print(adj_mat)
 
 
-if __name__ == "__main__":
-    iter_files_and_get_links()
+def main():
+    get_links_dict =iter_files_and_get_links()
+    construct_adjacency_matrix(get_links_dict)
+main()
