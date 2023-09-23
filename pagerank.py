@@ -2,6 +2,8 @@ import re
 import os
 from google.cloud import storage
 from google.oauth2.service_account import Credentials
+from itertools import chain
+import numpy as np
 
 MAX_NUM_FILES: int = 10000
 MAX_LINKS: int = 250
@@ -53,26 +55,68 @@ def iter_files_and_get_links():
         for link in list_links:
             result.append(re.findall(pattern, link))
         return result
-    
+
     #  Logic to iterate through the files and get the links
     links_dict = {}
     for i in range(MAX_NUM_FILES):
-        if os.path.exists(f"mini_internet/{i}.html"):
+        if os.path.exists(f"htmls/{i}.html"):
             html_link_res, res_len = get_html_from_file(f"mini_internet/{i}.html")
-            links_dict[i] = get_link_id_from_string(html_link_res) 
+            links_dict[i] = list(
+                chain.from_iterable(get_link_id_from_string(html_link_res))
+            )
     return links_dict
+
 
 def construct_adjacency_matrix(links_dict: dict) -> list[list[int]]:
     # The rows in the matrix are the outgoing links and the columns are the incoming links
     # if the row has a 1, it means that the column has a link to the row otherwise 0
-    adj_mat = [[0 for i in range(MAX_NUM_FILES)] for j in range(MAX_NUM_FILES)]
+    adj_mat = np.array(
+        [[0 for i in range(MAX_NUM_FILES)] for j in range(MAX_NUM_FILES)]
+    )
     for key, value in links_dict.items():
+        curr_row = adj_mat[key]
         for link in value:
-            adj_mat[int(link[0])][key] = 1
-    print(adj_mat)
+            curr_row[int(link)] = 1
+    return adj_mat
+
+
+def pagerank(
+    adj_mat: list[list[int]],
+    pr_addition_const: float = 0.15,
+    pr_damping_factor: float = 0.85,
+    epsilon: float = 0.005
+) -> list[float]:
+    #  PR(A) = 0.15 + 0.85 * (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
+    page_rank_mat = np.array([1] * MAX_NUM_FILES)
+
+    """
+    In a double for loop, for each incoming edge i in the 10000,
+    you pick the outgoing edge j and sum the number for this edge,
+    adding it to get the total number of outgoing edges for the page.
+    """
+    for i in range(MAX_NUM_FILES):
+        old_mat = page_rank_mat.copy()
+        t = np.where(adj_mat[:, i] == 1)[0]
+        # print(t, "-------")
+        local_sum = 0
+        for elem in t:
+            C_val = np.sum(adj_mat[elem])
+            page_rank_val = page_rank_mat[elem]
+            local_sum += page_rank_val / C_val
+        page_rank_mat[i] = pr_addition_const + pr_damping_factor * local_sum
+        percent_change = np.abs(np.sum(page_rank_mat) - np.sum(old_mat)) / np.sum(
+            page_rank_mat
+        )
+        if percent_change < epsilon:
+            return old_mat
 
 
 def main():
-    get_links_dict =iter_files_and_get_links()
-    construct_adjacency_matrix(get_links_dict)
+    get_links_dict = iter_files_and_get_links()
+    adj_mat = construct_adjacency_matrix(get_links_dict)
+    mat = pagerank(adj_mat)
+    sorted_mat = np.argsort(mat)
+    print(sorted_mat)
+
+
 main()
