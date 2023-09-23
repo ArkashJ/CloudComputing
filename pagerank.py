@@ -59,7 +59,7 @@ def iter_files_and_get_links():
     #  Logic to iterate through the files and get the links
     links_dict = {}
     for i in range(MAX_NUM_FILES):
-        if os.path.exists(f"htmls/{i}.html"):
+        if os.path.exists(f"mini_internet/{i}.html"):
             html_link_res, res_len = get_html_from_file(f"mini_internet/{i}.html")
             links_dict[i] = list(
                 chain.from_iterable(get_link_id_from_string(html_link_res))
@@ -84,28 +84,28 @@ def pagerank(
     adj_mat: list[list[int]],
     pr_addition_const: float = 0.15,
     pr_damping_factor: float = 0.85,
-    epsilon: float = 0.005
+    epsilon: float = 0.005,
 ) -> list[float]:
     #  PR(A) = 0.15 + 0.85 * (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
-    page_rank_mat = np.array([1] * MAX_NUM_FILES)
-
+    page_rank_mat = np.array([1 / MAX_NUM_FILES] * MAX_NUM_FILES)
     """
     In a double for loop, for each incoming edge i in the 10000,
     you pick the outgoing edge j and sum the number for this edge,
     adding it to get the total number of outgoing edges for the page.
     """
+    k = 0
     for i in range(MAX_NUM_FILES):
         old_mat = page_rank_mat.copy()
         t = np.where(adj_mat[:, i] == 1)[0]
-        # print(t, "-------")
         local_sum = 0
         for elem in t:
-            C_val = np.sum(adj_mat[elem])
+            c_values = np.sum(adj_mat[elem])
             page_rank_val = page_rank_mat[elem]
-            local_sum += page_rank_val / C_val
+            sum = page_rank_val / c_values
+            local_sum += page_rank_val / c_values
         page_rank_mat[i] = pr_addition_const + pr_damping_factor * local_sum
         percent_change = np.abs(np.sum(page_rank_mat) - np.sum(old_mat)) / np.sum(
-            page_rank_mat
+            old_mat
         )
         if percent_change < epsilon:
             return old_mat
