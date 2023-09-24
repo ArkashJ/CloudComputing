@@ -32,10 +32,43 @@ def get_bucket_and_block(
     blob = storage_client.list_blobs(
         bucket_name, timeout=max_timeout, prefix=block_name
     )
-
+    
     for blob in blob:
         with blob.open("r") as f:
-            print(f.read())
+            #  Logic to iterate through the files and get the links
+            links_dict = {}
+            for i in range(MAX_NUM_FILES):
+                html_link_res, res_len = get_html_from_file_cloud(f.read())
+                links_dict[i] = list(
+                    chain.from_iterable(get_link_id_from_string(html_link_res))
+                )
+        
+            adj_mat = construct_adjacency_matrix(get_links_dict)
+            start = time.perf_counter()
+            mat, page_rank = pagerank(adj_mat)
+            end = time.perf_counter()
+            print(f"Time taken: {end - start}")
+            sorted_mat = np.argsort(mat)
+            print(sorted_mat[-5:])
+
+
+def get_html_from_file_cloud(files) -> list[str]:
+    reg = r'"\d*.html"'
+    pattern = re.compile(reg)
+    result = re.findall(pattern, files)
+    return result, len(result)
+
+
+# Function to iterate through the list of links and only get the page number from the link
+def get_link_id_from_string(list_links: list[str]) -> list[str]:
+    reg_str = r"\d+"  # get number from '"8144.html"
+    pattern = re.compile(
+        reg_str
+    )  # compile = efficient way for regex to prevent regex object creation everytime
+    result = []
+    for link in list_links:
+        result.append(re.findall(pattern, link))
+    return result
 
 
 def iter_files_and_get_links(
@@ -49,18 +82,8 @@ def iter_files_and_get_links(
             html = f.read()
             result = re.findall(pattern, html)
             return result, len(result)
-
-    # Function to iterate through the list of links and only get the page number from the link
-    def get_link_id_from_string(list_links: list[str]) -> list[str]:
-        reg_str = r"\d+"  # get number from '"8144.html"
-        pattern = re.compile(
-            reg_str
-        )  # compile = efficient way for regex to prevent regex object creation everytime
-        result = []
-        for link in list_links:
-            result.append(re.findall(pattern, link))
-        return result
-
+    incoming_links = []
+    outgoing_links = []
     #  Logic to iterate through the files and get the links
     links_dict = {}
     for i in range(MAX_NUM_FILES):
@@ -83,6 +106,42 @@ def construct_adjacency_matrix(links_dict: dict) -> list[list[int]]:
         for link in value:
             curr_row[int(link)] = 1
     return adj_mat
+
+
+def statistics(adj_mat: list[list[int]]): 
+    def laverage(links: list[int]) -> float:
+        average_val = np.average(links)
+        print(f"Average links: {average_val} \n") 
+        return np.average(links) 
+
+    def lmedian(links: list[int]) -> float:
+        median_val = np.median(links)
+        print(f"Median links: {median_val} \n")
+        return np.median(links)
+
+    def lmax(links: list[int]) -> float:
+        max_val = np.max(links)
+        print(f"Max links: {max_val} \n")
+        return np.max(links)
+
+    def lmin(links: list[int]) -> float:
+        min_val = np.min(links)
+        print(f"Min links: {min_val}\n")
+        return np.min(links)
+
+    def lquintiles(links: list[int]) -> list[float]:
+        quintiles = np.quantile(links, [0.2, 0.4, 0.6, 0.8])
+        print(f"Quintiles links: {quintiles}\n")
+
+    print("Statistics for incoming links are as follows:")
+    laverage(incoming_links), lmedian(incoming_links), lmax(incoming_links), lmin(
+        incoming_links
+    ), lquintiles(incoming_links)
+
+    print("Statistics for outgoing links are as follows:")
+    laverage(outgoing_links), lmedian(outgoing_links), lmax(outgoing_links), lmin(
+        outgoing_links
+    ), lquintiles(outgoing_links)
 
 
 @jit(nopython=True)
@@ -124,23 +183,24 @@ def pagerank(
             f"Num iters: {num_iters}",
         )
         if percent_change <= epsilon:
-            return old_mat
+            return old_mat, page_rank_mat
 
 
 def main():
     get_links_dict = iter_files_and_get_links()
     adj_mat = construct_adjacency_matrix(get_links_dict)
     start = time.perf_counter()
-    mat = pagerank(adj_mat)
+    mat, page_rank = pagerank(adj_mat)
     end = time.perf_counter()
     print(f"Time taken: {end - start}")
     sorted_mat = np.argsort(mat)
-    print(sorted_mat[-10:])
-
+    print(sorted_mat[-5:])
+    statistics(adj_mat)
     # G = nx.Graph(get_links_dict)
     # g2 = nx.DiGraph(get_links_dict)
     # pr = nx.pagerank(g2, alpha=0.85)
     # print(sorted(pr.items(), key=lambda x: x[1], reverse=True)[:10])
+    # get_bucket_and_block()
 
 
 main()
