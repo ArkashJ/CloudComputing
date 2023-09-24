@@ -59,8 +59,8 @@ def iter_files_and_get_links():
     #  Logic to iterate through the files and get the links
     links_dict = {}
     for i in range(MAX_NUM_FILES):
-        if os.path.exists(f"test/{i}.html"):
-            html_link_res, res_len = get_html_from_file(f"test/{i}.html")
+        if os.path.exists(f"mini_internet/{i}.html"):
+            html_link_res, res_len = get_html_from_file(f"mini_internet/{i}.html")
             links_dict[i] = list(
                 chain.from_iterable(get_link_id_from_string(html_link_res))
             )
@@ -130,7 +130,7 @@ def main():
     adj_mat = construct_adjacency_matrix(get_links_dict)
     mat = pagerank(adj_mat)
     sorted_mat = np.argsort(mat)
-    print(sorted_mat[:10])
+    print(sorted_mat[-10:])
     
     # G = nx.Graph(get_links_dict)
     # g2 = nx.DiGraph(get_links_dict)
