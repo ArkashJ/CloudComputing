@@ -4,7 +4,7 @@ from google.cloud import storage
 from google.oauth2.service_account import Credentials
 from itertools import chain
 import numpy as np
-
+import networkx as nx
 MAX_NUM_FILES: int = 10000
 MAX_LINKS: int = 250
 
@@ -59,8 +59,8 @@ def iter_files_and_get_links():
     #  Logic to iterate through the files and get the links
     links_dict = {}
     for i in range(MAX_NUM_FILES):
-        if os.path.exists(f"mini_internet/{i}.html"):
-            html_link_res, res_len = get_html_from_file(f"mini_internet/{i}.html")
+        if os.path.exists(f"test/{i}.html"):
+            html_link_res, res_len = get_html_from_file(f"test/{i}.html")
             links_dict[i] = list(
                 chain.from_iterable(get_link_id_from_string(html_link_res))
             )
@@ -87,34 +87,43 @@ def pagerank(
     epsilon: float = 0.005,
 ) -> list[float]:
     #  PR(A) = 0.15 + 0.85 * (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
-    page_rank_mat = np.array([1] * MAX_NUM_FILES)
+    page_rank_mat = np.array([1 / MAX_NUM_FILES] * MAX_NUM_FILES)
     """
     In a double for loop, for each incoming edge i in the 10000,
     you pick the outgoing edge j and sum the number for this edge,
     adding it to get the total number of outgoing edges for the page.
     """
     num_iters = 0
+    elems_dict = {}
     for i in range(MAX_NUM_FILES):
-        old_mat = page_rank_mat.copy()
-        t = np.where(adj_mat[:, i] == 1)[0]
-        sum_rows = np.sum(old_mat[elem] / np.sum(adj_mat[elem]) for elem in t)
-        print(t)
-        # local_sum = 0
-        # for elem in t:
-        #     c_values = np.sum(adj_mat[elem])
-        #     page_rank_val = page_rank_mat[elem]
-        #     sum = page_rank_val / c_values
-        #     local_sum += page_rank_val / c_values
-        # print(local_sum, "local sum")
-        page_rank_mat[i] = pr_addition_const + (pr_damping_factor * sum_rows)
-        print("old mat sum", np.sum(old_mat), "new mat sum", np.sum(page_rank_mat))
-        percent_change = np.abs(np.sum(page_rank_mat) - np.sum(old_mat)) / np.sum(
-            old_mat
-        )
-        if percent_change < epsilon:
-             return old_mat
-        num_iters += 1
+        elems_dict[i] = np.where(adj_mat[:, i] == 1)[0]
     
+    sums_dict = {}
+    for elem in elems_dict:
+        sums_dict[elem] = adj_mat[elem].sum()
+
+    while True:
+        old_mat = page_rank_mat.copy()
+
+        for i in range(MAX_NUM_FILES):
+            sum_rows = 0.0
+            for elem in elems_dict[i]:
+                sum_rows += page_rank_mat[elem] / sums_dict[elem]
+
+            page_rank_mat[i] = pr_addition_const + (pr_damping_factor * sum_rows)
+        num_iters += 1
+        page_rank_mat_sum = page_rank_mat.sum()
+        old_mat_sum = old_mat.sum()
+        percent_change = abs(page_rank_mat_sum - old_mat_sum) / old_mat_sum
+        print(
+            f"Percent change: {percent_change}",
+            f"Num iters: {num_iters}",
+            f"Sum of page rank mat: {page_rank_mat_sum}",
+            f"Sum of old mat: {old_mat_sum}",
+        )
+        if percent_change <= epsilon:
+            return old_mat
+
 
 def main():
     get_links_dict = iter_files_and_get_links()
@@ -122,6 +131,9 @@ def main():
     mat = pagerank(adj_mat)
     sorted_mat = np.argsort(mat)
     print(sorted_mat[:10])
-
-
+    
+    # G = nx.Graph(get_links_dict)
+    # g2 = nx.DiGraph(get_links_dict)
+    # pr = nx.pagerank(g2, alpha=0.85)
+    # print(sorted(pr.items(), key=lambda x: x[1], reverse=True)[:10])
 main()
