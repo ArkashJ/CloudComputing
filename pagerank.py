@@ -1,3 +1,4 @@
+import time
 import re
 import os
 from google.cloud import storage
@@ -5,6 +6,8 @@ from google.oauth2.service_account import Credentials
 from itertools import chain
 import numpy as np
 import networkx as nx
+from numba import jit
+
 MAX_NUM_FILES: int = 10000
 MAX_LINKS: int = 250
 
@@ -35,7 +38,9 @@ def get_bucket_and_block(
             print(f.read())
 
 
-def iter_files_and_get_links():
+def iter_files_and_get_links(
+    filepath: str = "mini_internet",
+):
     # Function to apply regex to get the html file names
     def get_html_from_file(files) -> list[str]:
         reg = r'"\d*.html"'
@@ -59,8 +64,8 @@ def iter_files_and_get_links():
     #  Logic to iterate through the files and get the links
     links_dict = {}
     for i in range(MAX_NUM_FILES):
-        if os.path.exists(f"mini_internet/{i}.html"):
-            html_link_res, res_len = get_html_from_file(f"mini_internet/{i}.html")
+        if os.path.exists(f"{filepath}/{i}.html"):
+            html_link_res, res_len = get_html_from_file(f"{filepath}/{i}.html")
             links_dict[i] = list(
                 chain.from_iterable(get_link_id_from_string(html_link_res))
             )
@@ -80,6 +85,7 @@ def construct_adjacency_matrix(links_dict: dict) -> list[list[int]]:
     return adj_mat
 
 
+@jit(nopython=True)
 def pagerank(
     adj_mat: list[list[int]],
     pr_addition_const: float = 0.15,
@@ -97,11 +103,10 @@ def pagerank(
     elems_dict = {}
     for i in range(MAX_NUM_FILES):
         elems_dict[i] = np.where(adj_mat[:, i] == 1)[0]
-    
+
     sums_dict = {}
     for elem in elems_dict:
         sums_dict[elem] = adj_mat[elem].sum()
-
     while True:
         old_mat = page_rank_mat.copy()
 
@@ -116,10 +121,7 @@ def pagerank(
         old_mat_sum = old_mat.sum()
         percent_change = abs(page_rank_mat_sum - old_mat_sum) / old_mat_sum
         print(
-            f"Percent change: {percent_change}",
             f"Num iters: {num_iters}",
-            f"Sum of page rank mat: {page_rank_mat_sum}",
-            f"Sum of old mat: {old_mat_sum}",
         )
         if percent_change <= epsilon:
             return old_mat
@@ -128,12 +130,17 @@ def pagerank(
 def main():
     get_links_dict = iter_files_and_get_links()
     adj_mat = construct_adjacency_matrix(get_links_dict)
+    start = time.perf_counter()
     mat = pagerank(adj_mat)
+    end = time.perf_counter()
+    print(f"Time taken: {end - start}")
     sorted_mat = np.argsort(mat)
     print(sorted_mat[-10:])
-    
+
     # G = nx.Graph(get_links_dict)
     # g2 = nx.DiGraph(get_links_dict)
     # pr = nx.pagerank(g2, alpha=0.85)
     # print(sorted(pr.items(), key=lambda x: x[1], reverse=True)[:10])
+
+
 main()
