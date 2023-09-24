@@ -24,3 +24,12 @@ Running regex.compile to prevent making regex objects again anad again
 ```
 re.compile(str)
 ```
+
+## Numba
+Use numba only on static classes and do not pass in complex data types into the function or call them in the array
+
+## Logic
+- Make an adjacency matrix of the graphs where the rows are the nodes and the columns are the edges
+- Compute the outgoing and incoming edges of each node
+- in each iteration, get the pagerank for each node 
+- check if the pagerank is converging
