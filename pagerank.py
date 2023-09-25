@@ -284,7 +284,7 @@ def get_bucket_and_block(
         with blob.open("r") as f:
             #  Logic to iterate through the files and get the links
             links_dict = {}
-            for i in range(MAX_NUM_FILES):
+            for i in tqdm(range(MAX_NUM_FILES)):
                 html_link_res, res_len = get_html_from_file_cloud(f.read())
                 links_dict[i] = list(
                     chain.from_iterable(get_link_id_from_string(html_link_res))
