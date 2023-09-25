@@ -222,9 +222,11 @@ class Pagerank_class:
         - printing the top 10 pages with the highest page rank
         ## NOTE: The accuracy may vary because we have set our epsilon to 0.005, changing it to 0.0001 will give us a more accurate result
         """
-        G = nx.Graph(get_links_dict)
+        get_links_dict = self.dict
+        # G = nx.Graph(get_links_dict)
         g2 = nx.DiGraph(get_links_dict)
         pr = nx.pagerank(g2, alpha=0.85)
+        print(f"Running pagerank using networkx library: \n")
         print(sorted(pr.items(), key=lambda x: x[1], reverse=True)[:5])
 
     # Function to run the algorithm and print the time taken
@@ -248,8 +250,12 @@ class Pagerank_class:
 def run_page_rank_locally():
     local = Pagerank_class()
     local.calculate_pagerank_and_stats_with_running_time()
-    # uncomment to test the output with the networkx library
-    # local.test_output()
+
+
+def run_page_rank_with_tests():
+    local = Pagerank_class()
+    local.calculate_pagerank_and_stats_with_running_time()
+    local.test_output()
 
 
 def get_bucket_and_block(
@@ -302,10 +308,18 @@ def main():
         action="store_true",
         help="Run the pagerank algorithm on the cloud",
     )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Run the pagerank algorithm locally and test the output",
+    )
     args = parser.parse_args()
     if args.local:
         run_page_rank_locally()
     if args.cloud:
         run_page_rank_cloud()
-    
+    if args.test:
+        run_page_rank_with_tests()
+
+
 main()
