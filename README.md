@@ -24,6 +24,9 @@ python3 generate_content.py
 mkdir mini_internet
 mv *.html mini_internet
 ```
+Note: if you use another directory name, you will need to change the directory name in the code.
+Go the iter_files_and_get_links function in pagerank.py and change the directory name
+
 6. Run the code
 ```
 python3 pagerank.py --local
