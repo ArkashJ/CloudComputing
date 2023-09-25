@@ -8,6 +8,7 @@ from itertools import chain
 import numpy as np
 import networkx as nx
 from numba import jit
+from tqdm import tqdm
 
 MAX_NUM_FILES: int = 10000
 MAX_LINKS: int = 250
@@ -53,7 +54,7 @@ def iter_files_and_get_links(
     outgoing_links = []
     #  Logic to iterate through the files and get the links
     links_dict = {}
-    for i in range(MAX_NUM_FILES):
+    for i in tqdm(range(MAX_NUM_FILES)):
         if os.path.exists(f"{filepath}/{i}.html"):
             html_link_res, res_len = get_html_from_file(f"{filepath}/{i}.html")
             links_dict[i] = list(
@@ -173,7 +174,7 @@ def pagerank(
 ## -------------- MAIN CLASS TO USE HELPERS & FIND PAGE RANK AND STATISTICS -------------- ##
 class Pagerank_class:
     """
-    The following functions do the following:
+    These functions do the following:
         - iter_files_and_get_links: iterates through the files and gets the links. It makes a dictionary with
             the key as the page number and the value as the corresponding list of links
         - construct_adjacency_matrix: constructs the adjacency matrix using the links dictionary
