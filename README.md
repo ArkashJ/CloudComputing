@@ -2,21 +2,6 @@
 
 https://cdn-uploads.piazza.com/paste/l78dcjpoj615ed/59d96dd159ba1094a7b22833e823fcbca915783586cb05a1bb38fc1b9c4a649f/DS_561-HW_2.pdf
 
-## Running the code
-RUN LOCALLY
-```
-python3 pagerank.py --local
-```
-RUN ON CLOUD
-```
-python3 pagerank.py --cloud
-```
-TEST LOCALLY
-Note: you may need to change the epsilon value in (pagerank function) the code to 0.0001
-```
-python3 pagerank.py --test
-```
-
 ## Steps to run the code
 1. Create a virtual environment
 ```
@@ -44,6 +29,21 @@ mv *.html mini_internet
 python3 pagerank.py --local
 ```
 
+
+## Options for running the code
+RUN LOCALLY
+```
+python3 pagerank.py --local
+```
+RUN ON CLOUD
+```
+python3 pagerank.py --cloud
+```
+TEST LOCALLY
+Note: you may need to change the epsilon value in (pagerank function) the code to 0.0001
+```
+python3 pagerank.py --test
+```
 
 ## Python Commands
 Running Python lint to check style
