@@ -285,12 +285,12 @@ def get_bucket_and_block(
     def read_blob_and_run_pagerank(blob):
         with blob.open("r") as f:
             #  Logic to iterate through the files and get the links
-            for i in (range(MAX_NUM_FILES)):
+            for i in tqdm(range(MAX_NUM_FILES)):
                 html_link_res, res_len = get_html_from_file_cloud(f.read())
                 links_dict[i] = list(
                     chain.from_iterable(get_link_id_from_string(html_link_res))
                 )
-
+    #
     links_dict = {}
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor: 
         res = [executor.submit(read_blob_and_run_pagerank, blob) for blob in blobs]
@@ -299,6 +299,9 @@ def get_bucket_and_block(
                 future.result()
             except Exception as exc:
                 print(f"generated an exception while reading thread: {exc}")
+    #
+    # for blob in blobs:
+    #     read_blob_and_run_pagerank(blob)
     page_rank_calculator_class = Pagerank_class(links_dict)
     page_rank_calculator_class.calculate_pagerank_on_cloud(links_dict)
 
