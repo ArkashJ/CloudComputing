@@ -17,6 +17,34 @@ Note: you may need to change the epsilon value in (pagerank function) the code t
 python3 pagerank.py --test
 ```
 
+## Steps to run the code
+1. Create a virtual environment
+```
+python3 -m venv env
+```
+2. Activate the virtual environment
+```
+source venv/bin/activate.fish
+```
+3. Install the requirements
+```
+pip3 install -r requirements.txt
+```
+4. Make the mini_internet
+```
+python3 generate_content.py
+```
+5. Move .html files to a folder called "mini_internet"
+```
+mkdir mini_internet
+mv *.html mini_internet
+```
+6. Run the code
+```
+python3 pagerank.py --local
+```
+
+
 ## Python Commands
 Running Python lint to check style
 ```
