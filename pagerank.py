@@ -1,9 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
 import time
 import re
 import os
 from google.cloud import storage
-from google.oauth2.service_account import Credentials
+#from google.oauth2.service_account import Credentials
 from itertools import chain
 import numpy as np
 import networkx as nx
@@ -239,6 +240,7 @@ class Pagerank_class:
         end = time.perf_counter()
         self.print_time_taken(start, end)
 
+
     def calculate_pagerank_on_cloud(self, dict_links: dict[int, list[int]]) -> None:
         adj_mat = self.get_adjacency_mat(dict_links)
         start = time.perf_counter()
@@ -266,31 +268,39 @@ def get_bucket_and_block(
     block_name: str = "mini_internet",
     max_timeout: int = 10,
 ):
-    credentials = Credentials.from_service_account_file(
-        filename=filename,
-    )
+    # credentials = Credentials.from_service_account_file(
+    #     filename=filename,
+    # )
 
-    storage_client = storage.Client(project=project, credentials=credentials)
+    storage_client = storage.Client().create_anonymous_client()
 
     # print out bucket info
-    bucket = storage_client.get_bucket(bucket_name, timeout=max_timeout)
+    bucket = storage_client.bucket(bucket_name)   
     print(bucket.blob(block_name))
     # work with blobs
-    blob = storage_client.list_blobs(
+    blobs = storage_client.list_blobs(
         bucket_name, timeout=max_timeout, prefix=block_name
     )
 
-    for blob in blob:
+    def read_blob_and_run_pagerank(blob):
         with blob.open("r") as f:
             #  Logic to iterate through the files and get the links
-            links_dict = {}
-            for i in tqdm(range(MAX_NUM_FILES)):
+            for i in (range(MAX_NUM_FILES)):
                 html_link_res, res_len = get_html_from_file_cloud(f.read())
                 links_dict[i] = list(
                     chain.from_iterable(get_link_id_from_string(html_link_res))
                 )
-            page_rank_calculator_class = Pagerank_class(links_dict)
-            page_rank_calculator_class.calculate_pagerank_on_cloud(links_dict)
+
+    links_dict = {}
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor: 
+        res = [executor.submit(read_blob_and_run_pagerank, blob) for blob in blobs]
+        for future in tqdm(as_completed(res), total=len(res)):
+            try:
+                future.result()
+            except Exception as exc:
+                print(f"generated an exception while reading thread: {exc}")
+    page_rank_calculator_class = Pagerank_class(links_dict)
+    page_rank_calculator_class.calculate_pagerank_on_cloud(links_dict)
 
 
 def run_page_rank_cloud():
