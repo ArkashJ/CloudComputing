@@ -1,3 +1,4 @@
+import argparse
 import time
 import re
 import os
@@ -12,46 +13,10 @@ MAX_NUM_FILES: int = 10000
 MAX_LINKS: int = 250
 
 
-def get_bucket_and_block(
-    filename: str = "cloudcomputingcourse-398918-79ae91e1fff7.json",
-    project: str = "CloudComputingCourse",
-    bucket_name: str = "hw2-arkjain-mini-internet",
-    block_name: str = "mini_internet",
-    max_timeout: int = 10,
-):
-    credentials = Credentials.from_service_account_file(
-        filename=filename,
-    )
-
-    storage_client = storage.Client(project=project, credentials=credentials)
-
-    # print out bucket info
-    bucket = storage_client.get_bucket(bucket_name, timeout=max_timeout)
-    print(bucket.blob(block_name))
-    # work with blobs
-    blob = storage_client.list_blobs(
-        bucket_name, timeout=max_timeout, prefix=block_name
-    )
-    
-    for blob in blob:
-        with blob.open("r") as f:
-            #  Logic to iterate through the files and get the links
-            links_dict = {}
-            for i in range(MAX_NUM_FILES):
-                html_link_res, res_len = get_html_from_file_cloud(f.read())
-                links_dict[i] = list(
-                    chain.from_iterable(get_link_id_from_string(html_link_res))
-                )
-        
-            adj_mat = construct_adjacency_matrix(get_links_dict)
-            start = time.perf_counter()
-            mat, page_rank = pagerank(adj_mat)
-            end = time.perf_counter()
-            print(f"Time taken: {end - start}")
-            sorted_mat = np.argsort(mat)
-            print(sorted_mat[-5:])
-
-
+## -------------- HELPER FUNCTIONS -------------- ##
+# Function to apply regex to get the html file names
+# Gets the links from the file in the CLOUD
+## NOTE: The logic is different from the local function because you have to open a file and read it locally
 def get_html_from_file_cloud(files) -> list[str]:
     reg = r'"\d*.html"'
     pattern = re.compile(reg)
@@ -71,6 +36,7 @@ def get_link_id_from_string(list_links: list[str]) -> list[str]:
     return result
 
 
+# Function to get the links dictionary LOCALLY
 def iter_files_and_get_links(
     filepath: str = "mini_internet",
 ):
@@ -82,6 +48,7 @@ def iter_files_and_get_links(
             html = f.read()
             result = re.findall(pattern, html)
             return result, len(result)
+
     incoming_links = []
     outgoing_links = []
     #  Logic to iterate through the files and get the links
@@ -108,40 +75,45 @@ def construct_adjacency_matrix(links_dict: dict) -> list[list[int]]:
     return adj_mat
 
 
-def statistics(adj_mat: list[list[int]]): 
-    def laverage(links: list[int]) -> float:
-        average_val = np.average(links)
-        print(f"Average links: {average_val} \n") 
-        return np.average(links) 
+def statistics(adj_mat: list[list[int]]):
+    outgoing_links = [0] * MAX_NUM_FILES
+    incoming_links = [0] * MAX_NUM_FILES
 
-    def lmedian(links: list[int]) -> float:
-        median_val = np.median(links)
-        print(f"Median links: {median_val} \n")
-        return np.median(links)
+    for i in range(MAX_NUM_FILES):
+        outgoing_links[i] = adj_mat[i, :].sum()
+        incoming_links[i] = adj_mat[:, i].sum()
 
-    def lmax(links: list[int]) -> float:
-        max_val = np.max(links)
-        print(f"Max links: {max_val} \n")
-        return np.max(links)
+    def laverage(lst):
+        return sum(lst) / len(lst)
 
-    def lmin(links: list[int]) -> float:
-        min_val = np.min(links)
-        print(f"Min links: {min_val}\n")
-        return np.min(links)
+    def lmedian(lst):
+        return sorted(lst)[len(lst) // 2]
 
-    def lquintiles(links: list[int]) -> list[float]:
-        quintiles = np.quantile(links, [0.2, 0.4, 0.6, 0.8])
-        print(f"Quintiles links: {quintiles}\n")
+    def lmax(lst):
+        return max(lst)
 
-    print("Statistics for incoming links are as follows:")
-    laverage(incoming_links), lmedian(incoming_links), lmax(incoming_links), lmin(
-        incoming_links
-    ), lquintiles(incoming_links)
+    def lmin(lst):
+        return min(lst)
 
-    print("Statistics for outgoing links are as follows:")
-    laverage(outgoing_links), lmedian(outgoing_links), lmax(outgoing_links), lmin(
-        outgoing_links
-    ), lquintiles(outgoing_links)
+    def quintiles(lst):
+        return np.quantile(lst, [0.2, 0.4, 0.6, 0.8, 1])
+
+    print(
+        f"\t \t Outgoing Links Data: \t \t \n",
+        f"Average: {laverage(outgoing_links)} \n",
+        f"Median: {lmedian(outgoing_links)} \n",
+        f"Max: {lmax(outgoing_links)} \n",
+        f"Min: {lmin(outgoing_links)} \n",
+        f"Quintiles: {quintiles(outgoing_links)} \n",
+    )
+    print(
+        f"\t \t Incoming Links Data: \t \t \n",
+        f"Average: {laverage(incoming_links)} \n",
+        f"Median: {lmedian(incoming_links)} \n",
+        f"Max: {lmax(incoming_links)} \n",
+        f"Min: {lmin(incoming_links)} \n",
+        f"Quintiles: {quintiles(incoming_links)} \n",
+    )
 
 
 @jit(nopython=True)
@@ -151,13 +123,18 @@ def pagerank(
     pr_damping_factor: float = 0.85,
     epsilon: float = 0.005,
 ) -> list[float]:
-    #  PR(A) = 0.15 + 0.85 * (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
-    page_rank_mat = np.array([1 / MAX_NUM_FILES] * MAX_NUM_FILES)
     """
-    In a double for loop, for each incoming edge i in the 10000,
-    you pick the outgoing edge j and sum the number for this edge,
+    Descriptions:
+    In a while loop, for each incoming edge i in the 10000, you pick the outgoing edge j and sum the number for this edge,
     adding it to get the total number of outgoing edges for the page.
+    #  PR(A) = 0.15 + 0.85 * (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
+
+    Explanation:
+    - For each "iteration" of the while loop, we update the pagerank matrix for all MAX_NUM_FILES pages
+        and then we check if the percent change between the old and new pagerank matrix is less than epsilon
+    - If the percent change is less than epsilon, we return the pagerank matrix
     """
+    page_rank_mat = np.array([1 / MAX_NUM_FILES] * MAX_NUM_FILES)
     num_iters = 0
     elems_dict = {}
     for i in range(MAX_NUM_FILES):
@@ -166,16 +143,23 @@ def pagerank(
     sums_dict = {}
     for elem in elems_dict:
         sums_dict[elem] = adj_mat[elem].sum()
+
+    # To save time complexity, we precompute:
+    # a) For the each of the COLUMNS (incoming links), where the value is 1. MEANING? The page has an incoming link from the column
+    # b) For each of the ROWS (outgoing links) in the array of THE CORRESPONDING column key in the dictionary, we sum the outgoing links for that page
+    # c) We then divide the pagerank of the incoming link by the sum of the outgoing links for that page
     while True:
         old_mat = page_rank_mat.copy()
 
         for i in range(MAX_NUM_FILES):
             sum_rows = 0.0
             for elem in elems_dict[i]:
+                # For each column, we get the page rank and divide it by the sum of the outgoing links for that page
                 sum_rows += page_rank_mat[elem] / sums_dict[elem]
-
+            # Page rank calculation.
             page_rank_mat[i] = pr_addition_const + (pr_damping_factor * sum_rows)
         num_iters += 1
+        # get the sum of the updated page rank matrix and the old page rank matrix, to calculate the percent change < epsilon
         page_rank_mat_sum = page_rank_mat.sum()
         old_mat_sum = old_mat.sum()
         percent_change = abs(page_rank_mat_sum - old_mat_sum) / old_mat_sum
@@ -186,21 +170,142 @@ def pagerank(
             return old_mat, page_rank_mat
 
 
+## -------------- MAIN CLASS TO USE HELPERS & FIND PAGE RANK AND STATISTICS -------------- ##
+class Pagerank_class:
+    """
+    The following functions do the following:
+        - iter_files_and_get_links: iterates through the files and gets the links. It makes a dictionary with
+            the key as the page number and the value as the corresponding list of links
+        - construct_adjacency_matrix: constructs the adjacency matrix using the links dictionary
+        - pagerank: runs the pagerank algorithm on the adjacency matrix
+           - We sort the page rank matrix and get the top 5 pages with the highest page rank
+        - statistics: prints the statistics for the outgoing and incoming links
+        - start, end: to calculate the time taken to run the pagerank algorithm
+    """
+
+    def __init__(self, dict=dict[int, list[int]]):
+        self.dict = dict
+
+    # Function to iterate through the files and get the links
+    def get_links_and_make_adjcency_matrix(self) -> list[list[int]]:
+        get_links_dict = iter_files_and_get_links()
+        self.dict = get_links_dict
+        return self.get_adjacency_mat(get_links_dict)
+
+    # Function to get the adjacency matrix from the links dictionary
+    def get_adjacency_mat(self, dict_links: dict[int, list[int]]) -> list[list[int]]:
+        adj_mat = construct_adjacency_matrix(dict_links)
+        return adj_mat
+
+    # Function to get the top 5 pages with the highest page rank
+    def get_page_rank_and_return_top_5(self, adj_mat: list[list[int]]) -> None:
+        mat, page_rank = pagerank(adj_mat)
+        sorted_mat = np.argsort(mat)
+        top_5 = sorted_mat[-5:]
+        top_5 = top_5[::-1]
+        print(f"\nThe top 5 pageranks are {top_5}\n")
+
+    # Function to print the MEAN, MEDIAN, MAX, MIN and QUINTILES for the outgoing and incoming links
+    def print_statistics(self, adj_mat: list[list[int]]):
+        statistics(adj_mat)
+
+    # Function to print the time taken
+    def print_time_taken(self, start: float, end: float) -> None:
+        print(f"\n Time taken: [Fetch Pagerank & Statistics]: {end - start}")
+
+    # Function to test the output:
+    def test_output(self):
+        """
+        Function to test the output by doing the following:
+        - making a bi directional graph using the links dictionary from the networkx library
+        - running page rank on the graph with alpha = 0.85
+        - printing the top 10 pages with the highest page rank
+        ## NOTE: The accuracy may vary because we have set our epsilon to 0.005, changing it to 0.0001 will give us a more accurate result
+        """
+        G = nx.Graph(get_links_dict)
+        g2 = nx.DiGraph(get_links_dict)
+        pr = nx.pagerank(g2, alpha=0.85)
+        print(sorted(pr.items(), key=lambda x: x[1], reverse=True)[:5])
+
+    # Function to run the algorithm and print the time taken
+    def calculate_pagerank_and_stats_with_running_time(self) -> None:
+        adj_mat = self.get_links_and_make_adjcency_matrix()
+        start = time.perf_counter()
+        self.get_page_rank_and_return_top_5(adj_mat)
+        self.print_statistics(adj_mat)
+        end = time.perf_counter()
+        self.print_time_taken(start, end)
+
+    def calculate_pagerank_on_cloud(self, dict_links: dict[int, list[int]]) -> None:
+        adj_mat = self.get_adjacency_mat(dict_links)
+        start = time.perf_counter()
+        self.get_page_rank_and_return_top_5(adj_mat)
+        self.print_statistics(adj_mat)
+        end = time.perf_counter()
+        self.print_time_taken(start, end)
+
+
+def run_page_rank_locally():
+    local = Pagerank_class()
+    local.calculate_pagerank_and_stats_with_running_time()
+    # uncomment to test the output with the networkx library
+    # local.test_output()
+
+
+def get_bucket_and_block(
+    filename: str = "cloudcomputingcourse-398918-79ae91e1fff7.json",
+    project: str = "CloudComputingCourse",
+    bucket_name: str = "hw2-arkjain-mini-internet",
+    block_name: str = "mini_internet",
+    max_timeout: int = 10,
+):
+    credentials = Credentials.from_service_account_file(
+        filename=filename,
+    )
+
+    storage_client = storage.Client(project=project, credentials=credentials)
+
+    # print out bucket info
+    bucket = storage_client.get_bucket(bucket_name, timeout=max_timeout)
+    print(bucket.blob(block_name))
+    # work with blobs
+    blob = storage_client.list_blobs(
+        bucket_name, timeout=max_timeout, prefix=block_name
+    )
+
+    for blob in blob:
+        with blob.open("r") as f:
+            #  Logic to iterate through the files and get the links
+            links_dict = {}
+            for i in range(MAX_NUM_FILES):
+                html_link_res, res_len = get_html_from_file_cloud(f.read())
+                links_dict[i] = list(
+                    chain.from_iterable(get_link_id_from_string(html_link_res))
+                )
+            page_rank_calculator_class = Pagerank_class(links_dict)
+            page_rank_calculator_class.calculate_pagerank_on_cloud(links_dict)
+
+
+def run_page_rank_cloud():
+    get_bucket_and_block()
+
+
 def main():
-    get_links_dict = iter_files_and_get_links()
-    adj_mat = construct_adjacency_matrix(get_links_dict)
-    start = time.perf_counter()
-    mat, page_rank = pagerank(adj_mat)
-    end = time.perf_counter()
-    print(f"Time taken: {end - start}")
-    sorted_mat = np.argsort(mat)
-    print(sorted_mat[-5:])
-    statistics(adj_mat)
-    # G = nx.Graph(get_links_dict)
-    # g2 = nx.DiGraph(get_links_dict)
-    # pr = nx.pagerank(g2, alpha=0.85)
-    # print(sorted(pr.items(), key=lambda x: x[1], reverse=True)[:10])
-    # get_bucket_and_block()
-
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Run the pagerank algorithm locally",
+    )
+    parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Run the pagerank algorithm on the cloud",
+    )
+    args = parser.parse_args()
+    if args.local:
+        run_page_rank_locally()
+    if args.cloud:
+        run_page_rank_cloud()
+    
 main()
