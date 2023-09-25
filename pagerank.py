@@ -290,16 +290,15 @@ def get_bucket_and_block(
                 links_dict[i] = list(
                     chain.from_iterable(get_link_id_from_string(html_link_res))
                 )
-    #
     links_dict = {}
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor: 
-        res = [executor.submit(read_blob_and_run_pagerank, blob) for blob in blobs]
-        for future in tqdm(as_completed(res), total=len(res)):
+        res = tqdm([executor.submit(read_blob_and_run_pagerank, blob) for blob in blobs])
+        for future in res:
             try:
                 future.result()
             except Exception as exc:
                 print(f"generated an exception while reading thread: {exc}")
-    #
+    # Test without threads 
     # for blob in blobs:
     #     read_blob_and_run_pagerank(blob)
     page_rank_calculator_class = Pagerank_class(links_dict)
