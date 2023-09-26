@@ -2,6 +2,11 @@
 
 https://cdn-uploads.piazza.com/paste/l78dcjpoj615ed/59d96dd159ba1094a7b22833e823fcbca915783586cb05a1bb38fc1b9c4a649f/DS_561-HW_2.pdf
 
+## Run on cloud
+```
+python3 page_rank_alg.py --cloud
+```
+
 ## Steps to run the code
 1. Create a virtual environment
 ```
@@ -29,34 +34,34 @@ Go the iter_files_and_get_links function in pagerank.py and change the directory
 
 6. Run the code
 ```
-python3 pagerank.py --local
+python3 page_rank_alg.py --local
 ```
 
 
 ## Options for running the code
 RUN LOCALLY
 ```
-python3 pagerank.py --local
+python3 page_rank_alg.py --local
 ```
 RUN ON CLOUD
 ```
-python3 pagerank.py --cloud
+python3 page_rank_alg.py --cloud
 ```
 TEST LOCALLY
-Note: you may need to change the epsilon value in (pagerank function) the code to 0.0001
+compares result of local and cloud
 ```
-python3 pagerank.py --test
+python3 page_rank_alg.py --test
 ```
 
 ## Python Commands
 Running Python lint to check style
 ```
-pylint pagerank.py 
+pylint page_rank_alg.py 
 ```
 
 Lint code
 ```
-black pagerank.py
+black page_rank_alg.py
 ```
 
 Make a virtual environment and run it in fish
