@@ -278,16 +278,16 @@ def get_bucket_and_block(
     bucket = storage_client.bucket(bucket_name)
     print(bucket.blob(block_name))
     # work with blobs
-    blobs = list(bucket.list_blobs(
-        bucket_name, timeout=max_timeout, prefix=block_name
-    ))
+    blobs = list(bucket.list_blobs(bucket_name, timeout=max_timeout, prefix=block_name))
 
     def read_blob_and_run_pagerank(blob):
         i = 0
         with blob.open("r") as f:
             #  Logic to iterate through the files and get the links
             html_link_res, res_len = get_html_from_file_cloud(f.read())
-            links_dict_elem = list(chain.from_iterable(get_link_id_from_string(html_link_res)))
+            links_dict_elem = list(
+                chain.from_iterable(get_link_id_from_string(html_link_res))
+            )
             return links_dict_elem
 
     links_dict = {}
