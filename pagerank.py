@@ -62,9 +62,6 @@ def iter_files_and_get_links(
             links_dict[i] = list(
                 chain.from_iterable(get_link_id_from_string(html_link_res))
             )
-            if i in [0, 1, 2, 3, 4]:
-                print(html_link_res)
-                print(links_dict[i])
     return links_dict
 
 
@@ -281,9 +278,9 @@ def get_bucket_and_block(
     bucket = storage_client.bucket(bucket_name)
     print(bucket.blob(block_name))
     # work with blobs
-    blobs = storage_client.list_blobs(
+    blobs = list(bucket.list_blobs(
         bucket_name, timeout=max_timeout, prefix=block_name
-    )
+    ))
 
     def read_blob_and_run_pagerank(blob):
         i = 0
