@@ -158,6 +158,7 @@ def page_rank_cloud_computer():
     end = time.perf_counter()
     print(f"\nTime taken: {end - start}")
 
+
 def page_rank_local_computer():
     links_dict = run_files_local()
     adj_mat = construct_adjacency_mat(links_dict)
@@ -171,6 +172,7 @@ def page_rank_local_computer():
     statistics(adj_mat)
     end = time.perf_counter()
     print(f"Time taken: {end - start}")
+
 
 def statistics(adj_mat: list[list[int]]):
     outgoing_links = [0] * MAX_NUM_FILES
@@ -226,10 +228,10 @@ def main():
         help="Run the pagerank algorithm on the local machine",
     )
     parser.add_argument(
-            "--test",
-            action="store_true",
-            help="Run the pagerank algorithm on the local machine and cloud",
-        )
+        "--test",
+        action="store_true",
+        help="Run the pagerank algorithm on the local machine and cloud",
+    )
     args = parser.parse_args()
     if args.cloud:
         page_rank_cloud_computer()
@@ -238,5 +240,6 @@ def main():
     else:
         page_rank_cloud_computer()
         page_rank_local_computer()
+
 
 main()
