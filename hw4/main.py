@@ -12,6 +12,7 @@ app = Flask(__name__)
 def make_logging_client() -> logging.logger:
     client = logging.Client()
     log_name = "requester_countries_logs"
+    client.setup_logging(log_name)
     logger = client.logger(log_name)
     return logger
 
