@@ -9,10 +9,10 @@ from google.cloud import logging
 app = Flask(__name__)
 
 
-def make_logging_client() -> logging.logger:
+def make_logging_client():
     client = logging.Client()
     log_name = "requester_countries_logs"
-    client.setup_logging(log_name)
+    client.setup_logging()
     logger = client.logger(log_name)
     return logger
 
@@ -33,8 +33,8 @@ def get_files_from_bucket(
         print("here------")
         blobs = client.list_blobs(bucket_name, prefix=prefix)
         print("Prefix", prefix, "blobs", blobs)
-        # for blob in blobs:
-        #     print(f"blob name: {blob.name}")
+        for blob in blobs:
+            print(f"blob name: {blob.name}")
         logger.log_text(f"Accessing blob: {blob.name}, and retuning the data to the user {blob.download_as_string()}")
         return Response(blob.download_as_string(), mimetype="text/html")
     except:
@@ -50,7 +50,6 @@ def get_bucket_path_fname(request_args: dict) -> Optional[str]:
         return None
     print(name.split("/")[-3:])
     logger = make_logging_client()
-    logger.log_text(f"The url is {name.split('/')[-3:]}"})
     return name.split("/")[-3:]
 
 
@@ -116,5 +115,5 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
             return Response(err_msg, status=501, mimetype="text/plain")
     except:
         err_msg = "Error, wrong HTTP Request Type"
-        logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
+        #logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
         return Response(err_msg, status=501, mimetype="text/plain")
