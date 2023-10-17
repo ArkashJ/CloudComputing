@@ -1,7 +1,14 @@
 from google.cloud import pubsub_v1
 
 
+from google.cloud import logging
+client = logging.Client()
+log_name = "requester_countries_logs"
+client.setup_logging()
+logger = client.logger(log_name)
+
 def callback(message):
+    logger.log_text(f"Received {message}.")
     print(f"Received {message}.")
     message.ack()
 

@@ -118,8 +118,4 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         #logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
         return Response(err_msg, status=501, mimetype="text/plain")
 
-
-if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5000)
-
 # sudo journalctl -u google-startup-scripts.service -f

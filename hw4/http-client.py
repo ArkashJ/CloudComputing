@@ -1,3 +1,5 @@
+#!env python3
+
 import http.client
 from urllib.parse import urljoin
 import argparse
@@ -102,9 +104,12 @@ def make_ip(cidr):
     ip = str(octet1)+ '.' + str(octet2) + '.' + str(octet3) + '.' + str(octet4)
     return ip
 
-def make_filename(bucketname, num_files):
+def make_filename(bucketname, dirname, num_files):
     idx = random.randrange(0, num_files)
-    name = bucketname + '/webdir/' + str(idx) + '.html'
+    name = bucketname
+    if dirname != '':
+        name += ('/' + dirname) 
+    name += ('/' + str(idx) + '.html')
     return name
 
 def get_list_item(lst):
@@ -125,6 +130,8 @@ def build_headers(country, ip):
     return headers
 
 def make_request(domain, port, country, ip, filename, use_ssl, ssl_context, follow, verbose):
+    if verbose:
+        print("Requesting ", filename, " from ", domain, port)
     conn = None
     if use_ssl:
         conn = http.client.HTTPSConnection(domain, port, context=ssl_context)
@@ -152,6 +159,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--domain", help="Domain to make requests to", type=str, default="www.python.org")
     parser.add_argument("-b", "--bucket", help="Cloud bucket containing your files.  Use none if running local", type=str, default="bu-cds533-kthanasi-bucket1")
+    parser.add_argument("-w", "--webdir", help="Directory containing your files.  Use none if you did not make one", type=str, default="webdir")
     parser.add_argument("-n", "--num_requests", help="Number of requests to make", type=int, default=100000)
     parser.add_argument("-i", "--index", help="Maximum existing file index", type=int, default=100000)
     parser.add_argument("-p", "--port", help="Server Port", type=int, default=80)
@@ -159,24 +167,21 @@ def main():
     parser.add_argument("-s", "--ssl", help="Use HTTPS", action="store_true")
     parser.add_argument("-v", "--verbose", help="Print the responses from the server on stdout", action="store_true")
     parser.add_argument("-r", "--random", help="Initial random seed", type=int, default=0)
-    parser.add_argument("-c", "--country", help="Country to use", type=str, default="none")
     args = parser.parse_args()
     build_country_cidrs()
     if args.random != 0:
         random.seed(args.random)
 
     if args.bucket == 'none':
-        args.bucket =''
+        args.bucket = ''
+    if args.webdir == 'none':
+        args.webdir = ''
     # Make the requests
     for i in range(0,args.num_requests):
-        if args.country != 'none':
-            country = args.country
-        #!/usr/bin/env python
-        else:
-            country = select_country()
+        country = select_country()
         cidr = select_cidr(country)
         ip = make_ip(cidr)
-        filename = make_filename(args.bucket, args.index)
+        filename = make_filename(args.bucket, args.webdir, args.index)
         # If using the default port but have enabled ssl change the default port to be that of SSL
         if args.ssl and args.port==80:
             args.port=443
