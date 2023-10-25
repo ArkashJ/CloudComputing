@@ -14,6 +14,10 @@
         - age group with most reqs?
         - income group with most reqs?
 
+## Notes
+    - Make sure to make a private IP
+    - Make new VMs and give them permissions to access the database
+
 ### Useful commands
 ```
 gcloud sql connect DATABASE_INSTANCE --user=root --quiet 
@@ -37,7 +41,7 @@ import sqlalchemy
 
 
 - Information on cloud connectors - https://cloud.google.com/sql/docs/mysql/connect-connectors#python
-
+- Github showing how to make a pool connection - https://github.com/GoogleCloudPlatform/cloud-sql-python-connector#how-to-use-this-connector
 
 
 ### Useful commands
