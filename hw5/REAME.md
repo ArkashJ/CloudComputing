@@ -37,3 +37,20 @@ import sqlalchemy
 
 
 - Information on cloud connectors - https://cloud.google.com/sql/docs/mysql/connect-connectors#python
+
+
+
+### Useful commands
+1) Get the status of your VM
+
+```
+sudo journalctl -u google-startup-scripts.service -f
+```
+
+2) Find and Kill a busy server
+```
+lsof -i :8080
+kill -9 $PID
+```
+
+3) 
