@@ -150,6 +150,9 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                 store_request_header_for_table["client_ip"] = request.headers.get(
                     "X-client-IP"
                 )
+                store_request_header_for_table["time_of_request"] = request.headers.get(
+                    "X-time"
+                )
                 store_request_header_for_second_table[
                     "request_time"
                 ] = request.headers.get("X-time")
@@ -190,13 +193,15 @@ Second table
 Requests: request_time, request_type
 """
 
-
 def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict):
     pool = make_connection_pool()
 
     with pool.connect() as conn:
-        query = """
-            CREATE TABLE IF NOT EXISTS Users (
+        cursor = conn.cursor()
+        try:
+            # Create Users table if it doesn't exist
+            create_users_table = """
+                CREATE TABLE IF NOT EXISTS Users (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     country VARCHAR(255) NOT NULL,
                     client_id INT NOT NULL,
@@ -205,41 +210,105 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
                     income_req ENUM('0-10k', '10k-20k', '20k-40k', '40k-60k', '60k-100k', '100k-150k', '150k-250k', '250k+'),
                     is_banned BOOLEAN NOT NULL,
                     time_of_request TIMESTAMP NOT NULL
-                    )
+                )
             """
-        conn.execute(query)
-
-    with pool.connect() as conn:
-        query = """
-            CREATE TABLE IF NOT EXISTS Requests (
+            cursor.execute(create_users_table)
+            
+            # Create Requests table if it doesn't exist
+            create_requests_table = """
+                CREATE TABLE IF NOT EXISTS Requests (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     time TIMESTAMP NOT NULL,
                     file_requested VARCHAR(255) NOT NULL,
                     error_code INT NOT NULL
-                    )
+                )
             """
-        conn.execute(query)
-    with pool.connect() as connection:
-        query = f"""
-           INSERT INTO Users(country, client_id, gender, income, age, is_banned)
-           VALUES (
-               '{data_from_headers["country"]}', 
-               '{data_from_headers["client_id"]}', 
-               '{data_from_headers["gender"]}', 
-               '{data_from_headers["income"]}', 
-               '{data_from_headers["age"]}', 
-               '{data_from_headers["population"]}', 
-               '{int(data_from_headers["is_banned"][1])}'
-           )
-           """
-        connection.execute(query)
-    with pool.connect() as connection:
-        query = f"""
-           INSERT INTO Requests(time, file_requested)
-           VALUES (
-               '{data_from_request["time"]}', 
-               '{data_from_request["file_requested"]}',
-                '{data_from_request["error_code"]}'
-               )
-           """
-        connection.execute(query)
+            cursor.execute(create_requests_table)
+            
+            # Insert data into Users table
+            insert_user_query = """
+                INSERT INTO Users (country, client_id, gender_req, age, income_req, is_banned, time_of_request)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+            user_data = (
+                data_from_headers["country"],
+                data_from_headers["client_id"],
+                data_from_headers["gender"],
+                data_from_headers["age"],
+                data_from_headers["income"],
+                int(data_from_headers["is_banned"][1]),
+                data_from_headers["time_of_request"],
+            )
+            cursor.execute(insert_user_query, user_data)
+            
+            # Insert data into Requests table
+            insert_request_query = """
+                INSERT INTO Requests (time, file_requested, error_code)
+                VALUES (%s, %s, %s)
+            """
+            request_data = (
+                data_from_request["request_time"],
+                data_from_request["requested_file"],
+                data_from_request["error_code"],
+            )
+            cursor.execute(insert_request_query, request_data)
+            
+            conn.commit()  # Commit the changes to the database
+        except Exception as e:
+            conn.rollback()  # Roll back the transaction in case of an error
+            raise e
+        finally:
+            cursor.close()
+#
+# def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict):
+#     pool = make_connection_pool()
+#
+#     with pool.connect() as conn:
+#         query = """
+#             CREATE TABLE IF NOT EXISTS Users (
+#                     id INT AUTO_INCREMENT PRIMARY KEY,
+#                     country VARCHAR(255) NOT NULL,
+#                     client_id INT NOT NULL,
+#                     gender_req ENUM('Male', 'Female'),
+#                     age ENUM('0-16', '17-25', '26-35', '36-45', '46-55', '56-65', '66-75', '76+'),
+#                     income_req ENUM('0-10k', '10k-20k', '20k-40k', '40k-60k', '60k-100k', '100k-150k', '150k-250k', '250k+'),
+#                     is_banned BOOLEAN NOT NULL,
+#                     time_of_request TIMESTAMP NOT NULL
+#                     )
+#             """
+#         conn.execute(query)
+#
+#     with pool.connect() as conn:
+#         query = """
+#             CREATE TABLE IF NOT EXISTS Requests (
+#                     id INT AUTO_INCREMENT PRIMARY KEY,
+#                     time TIMESTAMP NOT NULL,
+#                     file_requested VARCHAR(255) NOT NULL,
+#                     error_code INT NOT NULL
+#                     )
+#             """
+#         conn.execute(query)
+#     with pool.connect() as connection:
+#         query = f"""
+#            INSERT INTO Users(country, client_id, gender, income, age, is_banned)
+#            VALUES (
+#                '{data_from_headers["country"]}', 
+#                '{data_from_headers["client_id"]}', 
+#                '{data_from_headers["gender"]}', 
+#                '{data_from_headers["income"]}', 
+#                '{data_from_headers["age"]}', 
+#                '{data_from_headers["population"]}', 
+#                '{int(data_from_headers["is_banned"][1])}'
+#            )
+#            """
+#         connection.execute(query)
+#     with pool.connect() as connection:
+#         query = f"""
+#            INSERT INTO Requests(time, file_requested)
+#            VALUES (
+#                '{data_from_request["time"]}', 
+#                '{data_from_request["file_requested"]}',
+#                 '{data_from_request["error_code"]}'
+#                )
+#            """
+#         connection.execute(query)
