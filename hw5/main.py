@@ -157,6 +157,9 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                     "request_time"
                 ] = request.headers.get("X-time")
                 store_request_header_for_second_table["requested_file"] = file
+                
+                print(f"store_request_header_for_table: {store_request_header_for_table}")
+                print(f"store_request_header_for_second_table: {store_request_header_for_second_table}")
 
                 if check_if_country_is_enemy(country):
                     err_msg = f"The country of {country} is an enemy country"
@@ -195,10 +198,11 @@ Requests: request_time, request_type
 
 def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict):
     pool = make_connection_pool()
-
+    print("here in make_countries_mysql_table")
     with pool.connect() as conn:
         cursor = conn.cursor()
         try:
+            print("made connection")
             # Create Users table if it doesn't exist
             create_users_table = """
                 CREATE TABLE IF NOT EXISTS Users (
@@ -224,7 +228,7 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
                 )
             """
             cursor.execute(create_requests_table)
-            
+            print("created tables") 
             # Insert data into Users table
             insert_user_query = """
                 INSERT INTO Users (country, client_id, gender_req, age, income_req, is_banned, time_of_request)
@@ -254,6 +258,7 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
             cursor.execute(insert_request_query, request_data)
             
             conn.commit()  # Commit the changes to the database
+            print("committed changes")
         except Exception as e:
             conn.rollback()  # Roll back the transaction in case of an error
             raise e
