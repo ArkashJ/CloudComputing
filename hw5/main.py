@@ -132,17 +132,27 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         if request.method == "GET":
             requets_headers = dict(request.headers.items())
             print("headers: ", requets_headers)
+            store_request_header_for_table = {} 
+            
             if request.headers.get("X-country") is not None:
                 country = request.headers.get("X-country")
-                print(f"country: ------- {country}")
+                store_request_header_for_table["country"] = country
+                store_request_header_for_table["gender"] = request.headers.get("X-gender")
+                store_request_header_for_table["age"] = request.headers.get("X-age")
+                store_request_header_for_table["income"] = request.headers.get("X-income")
+                store_request_header_for_table["client_ip"] = request.headers.get("X-client-IP")
+                store_request_header_for_table["request_time"] = request.headers.get("X-time")
+                
                 if check_if_country_is_enemy(country):
                     err_msg = f"The country of {country} is an enemy country"
+                    store_request_header_for_table["is_banned"] = (country, True)
                     future = publisher.publish(topic_path, err_msg.encode("utf-8"))
                     logger.log_text(
                         f"Error, the country of {country} is an enemy country, Status: 400"
                     )
                     return Response(err_msg, status=400, mimetype="text/plain")
-
+                
+                store_request_header_for_table["is_banned"] = (country, False)
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
             err_msg = "Error, wrong HTTP Request Type"
