@@ -162,7 +162,10 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                     return Response(err_msg, status=400, mimetype="text/plain")
 
                 store_request_header_for_table["is_banned"] = (country, False)
-
+                make_countries_mysql_table(
+                    store_request_header_for_table,
+                    store_request_header_for_second_table,
+                )
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
             err_msg = "Error, wrong HTTP Request Type"
