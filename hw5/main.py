@@ -8,6 +8,9 @@ from google.cloud import logging
 from google.cloud.sql.connector import Connector, IPTypes
 import pymysql
 import sqlalchemy
+from dotenv import load_dotenv 
+
+load_dotenv()
 
 connector = Connector(
     "cloudcomputingcourse-398918:us-central1:cloudcomputingcourse",
@@ -159,9 +162,11 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                     logger.log_text(
                         f"Error, the country of {country} is an enemy country, Status: 400"
                     )
+                    store_request_header_for_second_table["error_code"] = 400
                     return Response(err_msg, status=400, mimetype="text/plain")
 
                 store_request_header_for_table["is_banned"] = (country, False)
+                store_request_header_for_second_table["error_code"] = 200
                 make_countries_mysql_table(
                     store_request_header_for_table,
                     store_request_header_for_second_table,
@@ -187,7 +192,6 @@ Requests: request_time, request_type
 
 
 def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict):
-    
     pool = make_connection_pool()
 
     with pool.connect() as conn:
@@ -200,6 +204,7 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
                     age ENUM('0-16', '17-25', '26-35', '36-45', '46-55', '56-65', '66-75', '76+'),
                     income_req ENUM('0-10k', '10k-20k', '20k-40k', '40k-60k', '60k-100k', '100k-150k', '150k-250k', '250k+'),
                     is_banned BOOLEAN NOT NULL,
+                    time_of_request TIMESTAMP NOT NULL
                     )
             """
         conn.execute(query)
@@ -210,6 +215,7 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     time TIMESTAMP NOT NULL,
                     file_requested VARCHAR(255) NOT NULL,
+                    error_code INT NOT NULL
                     )
             """
         conn.execute(query)
@@ -232,7 +238,8 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
            INSERT INTO Requests(time, file_requested)
            VALUES (
                '{data_from_request["time"]}', 
-               '{data_from_request["file_requested"]}'
-           )
+               '{data_from_request["file_requested"]}',
+                '{data_from_request["error_code"]}'
+               )
            """
         connection.execute(query)
