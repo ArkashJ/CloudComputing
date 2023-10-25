@@ -1,0 +1,36 @@
+## TODO
+    - Add cloud SQL db to project and make a schema obeying 2nd NF
+    - Country, client Ip, gender aged incom, is_banned_, time of day and requested file
+    - Modify code to add it to your 2nf db
+    - Make a new VM
+        - Add permissions for library
+        - 200 should be logged in a new table
+    - Use curl to test it out
+    - Make the same random seed, 2 clients each making 50k requests each
+        - Compute stats like number of successful and unsuccessful requests
+        - banned countries reqs
+        - male vs female
+        - top 5 senders
+        - age group with most reqs?
+        - income group with most reqs?
+
+### Useful commands
+```
+gcloud sql connect DATABASE_INSTANCE --user=root --quiet 
+```
+
+```
+import os
+from google.cloud.sql.connector import Connector, IPTypes
+import pymysql
+import socket, struct
+import sqlalchemy
+```
+
+### Useful links
+- https://github.com/GoogleCloudPlatform/cloud-sql-python-connector/blob/main/samples/notebooks/mysql_python_connector.ipynb
+- https://dev.mysql.com/downloads/mysql/
+- https://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_PROTOCOL.html#protocol_overview
+- https://cloud.google.com/sql/docs/mysql/language-connectors
+- https://docs.google.com/presentation/d/1u2EA9-9X_dNn8RBdBivoCuuxwGpdQV7YCcH6SClZCgY/edit#slide=id.g258da33442f_0_141
+- https://docs.google.com/presentation/d/120uEEuhQNR984r-iGnGD5GELDZVFRm3RGC1N0gXTNrA/edit#slide=id.g27446ef6af8_0_70
