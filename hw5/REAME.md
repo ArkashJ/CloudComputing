@@ -34,3 +34,6 @@ import sqlalchemy
 - https://cloud.google.com/sql/docs/mysql/language-connectors
 - https://docs.google.com/presentation/d/1u2EA9-9X_dNn8RBdBivoCuuxwGpdQV7YCcH6SClZCgY/edit#slide=id.g258da33442f_0_141
 - https://docs.google.com/presentation/d/120uEEuhQNR984r-iGnGD5GELDZVFRm3RGC1N0gXTNrA/edit#slide=id.g27446ef6af8_0_70
+
+
+- Information on cloud connectors - https://cloud.google.com/sql/docs/mysql/connect-connectors#python
