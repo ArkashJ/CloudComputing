@@ -187,11 +187,7 @@ Requests: request_time, request_type
 
 
 def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict):
-    # function takes the store_request_header_for_table and calls the
-    # make_connection_pool() function to create a connection pool.
-    # Then it creates a table called Users and adds the data from the
-    # store_request_header_for_table to the table.
-
+    
     pool = make_connection_pool()
 
     with pool.connect() as conn:
