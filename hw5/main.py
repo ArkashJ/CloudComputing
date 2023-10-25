@@ -132,18 +132,26 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         if request.method == "GET":
             requets_headers = dict(request.headers.items())
             print("headers: ", requets_headers)
-            store_request_header_for_table = {} 
+            store_request_header_for_table = {}
             store_request_header_for_second_table = {}
             if request.headers.get("X-country") is not None:
                 country = request.headers.get("X-country")
                 store_request_header_for_table["country"] = country
-                store_request_header_for_table["gender"] = request.headers.get("X-gender")
+                store_request_header_for_table["gender"] = request.headers.get(
+                    "X-gender"
+                )
                 store_request_header_for_table["age"] = request.headers.get("X-age")
-                store_request_header_for_table["income"] = request.headers.get("X-income")
-                store_request_header_for_table["client_ip"] = request.headers.get("X-client-IP")
-                store_request_header_for_second_table["request_time"] = request.headers.get("X-time")
+                store_request_header_for_table["income"] = request.headers.get(
+                    "X-income"
+                )
+                store_request_header_for_table["client_ip"] = request.headers.get(
+                    "X-client-IP"
+                )
+                store_request_header_for_second_table[
+                    "request_time"
+                ] = request.headers.get("X-time")
                 store_request_header_for_second_table["requested_file"] = file
-                
+
                 if check_if_country_is_enemy(country):
                     err_msg = f"The country of {country} is an enemy country"
                     store_request_header_for_table["is_banned"] = (country, True)
@@ -152,9 +160,8 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                         f"Error, the country of {country} is an enemy country, Status: 400"
                     )
                     return Response(err_msg, status=400, mimetype="text/plain")
-                
+
                 store_request_header_for_table["is_banned"] = (country, False)
-                
 
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
@@ -175,14 +182,15 @@ Second table
 Requests: request_time, request_type
 """
 
-def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict): 
-    # function takes the store_request_header_for_table and calls the 
+
+def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict):
+    # function takes the store_request_header_for_table and calls the
     # make_connection_pool() function to create a connection pool.
     # Then it creates a table called Users and adds the data from the
     # store_request_header_for_table to the table.
 
     pool = make_connection_pool()
-    
+
     with pool.connect() as conn:
         query = """
             CREATE TABLE IF NOT EXISTS Users (
@@ -192,10 +200,11 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
                     gender_req ENUM('Male', 'Female'),
                     age ENUM('0-16', '17-25', '26-35', '36-45', '46-55', '56-65', '66-75', '76+'),
                     income_req ENUM('0-10k', '10k-20k', '20k-40k', '40k-60k', '60k-100k', '100k-150k', '150k-250k', '250k+'),
+                    is_banned BOOLEAN NOT NULL,
                     )
             """
         conn.execute(query)
-    
+
     with pool.connect() as conn:
         query = """
             CREATE TABLE IF NOT EXISTS Requests (
@@ -205,8 +214,26 @@ def make_countries_mysql_table(data_from_headers: dict, data_from_request: dict)
                     )
             """
         conn.execute(query)
-   
-   with pool.connect as conn:
-       for elem in data_from_headers.items():
-            country = elem.get("country")
-            gender = elem.get("gender")
+    with pool.connect() as connection:
+        query = f"""
+           INSERT INTO Users(country, client_id, gender, income, age, is_banned)
+           VALUES (
+               '{data_from_headers["country"]}', 
+               '{data_from_headers["client_id"]}', 
+               '{data_from_headers["gender"]}', 
+               '{data_from_headers["income"]}', 
+               '{data_from_headers["age"]}', 
+               '{data_from_headers["population"]}', 
+               '{int(data_from_headers["is_banned"][1])}'
+           )
+           """
+        connection.execute(query)
+    with pool.connect() as connection:
+        query = f"""
+           INSERT INTO Requests(time, file_requested)
+           VALUES (
+               '{data_from_request["time"]}', 
+               '{data_from_request["file_requested"]}'
+           )
+           """
+        connection.execute(query)
