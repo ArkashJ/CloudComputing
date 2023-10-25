@@ -1,6 +1,6 @@
 ## TODO
     - Add cloud SQL db to project and make a schema obeying 2nd NF
-    - Country, client Ip, gender aged incom, is_banned_, time of day and requested file
+    - Country, client Ip, gender, age, income, is_banned_, time of day and requested file
     - Modify code to add it to your 2nf db
     - Make a new VM
         - Add permissions for library
@@ -13,6 +13,10 @@
         - top 5 senders
         - age group with most reqs?
         - income group with most reqs?
+    
+    a) Modify code to make a 2NF table and add it to your cloud SQL db
+        - Table 1: country, is_banned_, time of day and requested file
+        - Table 2: client_ip, age, income
 
 ## Notes
     - Make sure to make a private IP

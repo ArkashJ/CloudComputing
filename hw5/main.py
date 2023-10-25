@@ -6,8 +6,22 @@ from google.api_core import exceptions
 from google.cloud import pubsub_v1
 from google.cloud import logging
 
+from google.cloud.sql.connector import Connector, IPTypes
+import pymysql
+import sqlalchemy
+
+connector = Connector()
 app = Flask(__name__)
 
+def get_connection() -> pymysql.connections.Connection:
+    conn: pymysql.connections.Connection = connector.connect(
+        "cloudcomputingcourse-398918:us-central1:cloudcomputingcourse",
+        "pymysql",
+        os.environ["DB_USER"],
+        os.environ["DB_PASSWORD"],
+        os.environ["DB_NAME"],
+            )
+    return conn
 
 def make_logging_client():
     client = logging.Client()
@@ -118,4 +132,11 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         #logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
         return Response(err_msg, status=501, mimetype="text/plain")
 
-#
+
+
+'''
+First table
+Users: countries, gender, age, income, is_banned, client_ip
+Second table
+Requests: request_time, request_type
+'''
