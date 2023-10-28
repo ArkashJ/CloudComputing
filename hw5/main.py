@@ -1,14 +1,13 @@
 import os
-from flask import Flask, Request, Response, request
-from google.cloud import storage
 from typing import Optional
-from google.api_core import exceptions
-from google.cloud import pubsub_v1
-from google.cloud import logging
-from google.cloud.sql.connector import Connector
+
 import pymysql
 import sqlalchemy
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
+from flask import Flask, Request, Response, request
+from google.api_core import exceptions
+from google.cloud import logging, pubsub_v1, storage
+from google.cloud.sql.connector import Connector
 
 load_dotenv()
 
@@ -22,6 +21,7 @@ DB_NAME = os.environ["DB_NAME"]
 
 print(INSTANCE_NAME, DB_USER, DB_PASSWORD, DB_NAME)
 
+
 def get_connection() -> pymysql.connections.Connection:
     conn: pymysql.connections.Connection = connector.connect(
         INSTANCE_NAME,
@@ -29,13 +29,15 @@ def get_connection() -> pymysql.connections.Connection:
         user=DB_USER,
         password=DB_PASSWORD,
         db=DB_NAME,
-        )
+    )
     return conn
+
 
 pool = sqlalchemy.create_engine(
     "mysql+pymysql://",
     creator=get_connection,
-) 
+)
+
 
 def make_logging_client():
     client = logging.Client()
@@ -129,32 +131,19 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         if request.method == "GET":
             requets_headers = dict(request.headers.items())
             print("headers: ", requets_headers)
-            store_request_header_for_table = {}
-            store_request_header_for_second_table = {}
             if request.headers.get("X-country") is not None:
                 print("here in if")
                 country = request.headers.get("X-country")
-                # store_request_header_for_table["country"] = country
-                # store_request_header_for_table["gender"] = request.headers.get(
-                #     "X-gender"
-                # )
-                # store_request_header_for_table["age"] = request.headers.get("X-age")
-                # store_request_header_for_table["income"] = request.headers.get(
-                #     "X-income"
-                # )
-                # store_request_header_for_table["client_ip"] = request.headers.get(
-                #     "X-client-IP"
-                # )
-                # store_request_header_for_table["time_of_request"] = request.headers.get(
-                #     "X-time"
-                # )
-                # store_request_header_for_second_table[
-                #     "request_time"
-                # ] = request.headers.get("X-time")
-                # store_request_header_for_second_table["requested_file"] = file
-                # 
-                # print(f"store_request_header_for_table: {store_request_header_for_table}")
-                # print(f"store_request_header_for_second_table: {store_request_header_for_second_table}")
+
+                make_database_and_publish_data(
+                    country=country,
+                    gender=request.headers.get("X-gender"),
+                    age=request.headers.get("X-age"),
+                    income=request.headers.get("X-income"),
+                    is_banned=request.headers.get("X-is-banned"),
+                    client_ip=request.headers.get("X-client-IP"),
+                    time_of_request=request.headers.get("X-time"),
+                )
 
                 if check_if_country_is_enemy(country):
                     err_msg = f"The country of {country} is an enemy country"
@@ -162,37 +151,53 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                     logger.log_text(
                         f"Error, the country of {country} is an enemy country, Status: 400"
                     )
-                    return Response(err_msg, status=400, mimetype="text/plain")
+                    make_second_database_and_publish_data(
+                        request_time=request.headers.get("X-time"),
+                        requested_file=file,
+                        error_code=400,
+                    )
 
+                    return Response(err_msg, status=400, mimetype="text/plain")
+                make_second_database_and_publish_data(
+                    request_time=request.headers.get("X-time"),
+                    requested_file=file,
+                    error_code=200,
+                )
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
             err_msg = "Error, wrong HTTP Request Type"
             print(err_msg)
-            logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
+            logger.log_text("Error, wrong HTTP Request Type, Status: 501")
+            make_second_database_and_publish_data(
+                request_time=request.headers.get("X-time"),
+                requested_file=file,
+                error_code=501,
+            )
             return Response(err_msg, status=501, mimetype="text/plain")
-    except:
+    except exceptions.NotFound:
         err_msg = "Error, wrong HTTP Request Type"
-        # logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
         return Response(err_msg, status=501, mimetype="text/plain")
 
 
 def make_database_and_publish_data(
-        country,
-        gender,
-        age,
-        income,
-        is_banned,
-        client_ip,
-        time_of_request,
-        ):
-    with pool.connect() as conn:
-        conn.execute(
+    country,
+    gender,
+    age,
+    income,
+    is_banned,
+    client_ip,
+    time_of_request,
+):
+    try:
+        print("Here trying to make a connection")
+        with pool.connect() as conn:
+            conn.execute(
                 sqlalchemy.text(
                     """
-                    INSERT INTO request (country, gender, age, income, is_banned, client_ip, time_of_request)
-                    VALUES (:country, :gender, :age, :income, :is_banned, :client_ip, :time_of_request)
-                    """
-                    ),
+                        INSERT INTO request (country, gender, age, income, is_banned, client_ip, time_of_request)
+                        VALUES (:country, :gender, :age, :income, :is_banned, :client_ip, :time_of_request)
+                        """
+                ),
                 dict(
                     country=country,
                     gender=gender,
@@ -201,29 +206,37 @@ def make_database_and_publish_data(
                     is_banned=is_banned,
                     client_ip=client_ip,
                     time_of_request=time_of_request,
-                )
-        )
-        conn.commit()
-        conn.close()
+                ),
+            )
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"{e} error in making a pool connection")
+        return Response("Error", status=409, mimetype="text/plain")
+
 
 def make_second_database_and_publish_data(
-        request_time,
-        requested_file,
-        error_code,
-        ):
-    with pool.connect() as conn:
-        conn.execute(
+    request_time,
+    requested_file,
+    error_code,
+):
+    try:
+        with pool.connect() as conn:
+            conn.execute(
                 sqlalchemy.text(
                     """
-                    INSERT INTO request_time (request_time, requested_file, error_code)
-                    VALUES (:request_time, :requested_file, :error_code)
-                    """
-                    ),
+                        INSERT INTO request_time (request_time, requested_file, error_code)
+                        VALUES (:request_time, :requested_file, :error_code)
+                        """
+                ),
                 dict(
                     request_time=request_time,
                     requested_file=requested_file,
                     error_code=error_code,
-                )
-        )
-        conn.commit()
-        conn.close()
+                ),
+            )
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"{e} error in making a pool connection")
+        return Response("Error", status=409, mimetype="text/plain")
