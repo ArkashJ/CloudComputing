@@ -8,11 +8,14 @@ def callback(message):
 
 def create_subscription():
     subscriber_name = "banned_request_countries-sub"
-    topic_name = "banned_request_countries"
-    PROJECT_ID: str = "cloudcomputingcourse-398918"
+    PROJECT_ID = "cloudcomputingcourse-398918"
     subscriber = pubsub_v1.SubscriberClient()
 
-    subscription_path = subscriber.subscription_path(PROJECT_ID, subscriber_name)
+    subscription_path = subscriber.subscription_path(
+            PROJECT_ID, 
+            subscriber_name,
+            )
+    
     with subscriber:
         future = subscriber.subscribe(subscription_path, callback)
         try:
