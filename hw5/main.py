@@ -48,7 +48,7 @@ def make_logging_client():
 
 
 def make_storage_client() -> storage.Client:
-    client = storage.Client().create_anonymous_client()
+    client = storage.Client()
     return client
 
 
@@ -61,7 +61,6 @@ def get_files_from_bucket(
     try:
         client = make_storage_client()
         prefix: str = f"{folder_name}/{file_name}"
-        print("here------")
         blobs = client.list_blobs(bucket_name, prefix=prefix)
         print("Prefix", prefix, "blobs", blobs)
         for blob in blobs:

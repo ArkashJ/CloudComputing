@@ -3,10 +3,16 @@
 echo "installing python3"
 sudo apt-get install python3-pip -y
 
-echo "copying files from bucket"
-sudo gsutil -m cp -r gs://hw5-ds561/hw5 /home/arkjain
+if [ -d "/home/arkjain/hw5" ]
+then
+    echo "found old files"
+else
+    gsutil -m cp -r gs://hw5-ds561/hw5 /home/arkjain
+fi
+
 curr_path="/home/arkjain/hw5-files"
 echo "installing requirements"
+echo "copying files from bucket"
 cd $curr_path 
 
 sudo pip3 install -r requirements.txt
