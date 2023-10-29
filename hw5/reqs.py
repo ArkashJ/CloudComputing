@@ -126,7 +126,17 @@ def check_if_country_is_enemy(
         "DELETE",
     ],
 )
+def make_threaded_request(bucket_name, dir, file):
+    with ThreadPoolExecutor() as executor:
+        future = executor.submit(receive_http_request, bucket_name, dir, file)
+        return future.result()
+    
 def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
+    publisher = pubsub_v1.PublisherClient()
+    topic_path = publisher.topic_path(
+        "cloudcomputingcourse-398918", "banned_request_countries"
+    )
+    logger = make_logging_client()
     try:
         if request.method == "GET":
             requets_headers = dict(request.headers.items())
@@ -231,4 +241,4 @@ def make_second_database_and_publish_data(
             )
             conn.close()
     except Exception as e:
-        return Response("Error", status=409, mimetype="text/plain")
+        return Response("Error", status=409, mimetype="text/plain") 
