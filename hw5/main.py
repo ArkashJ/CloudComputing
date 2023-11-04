@@ -155,6 +155,7 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                     requested_file=file,
                     error_code=200,
                 )
+            print(bucket_name, dir, file)
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
             err_msg = "Error, wrong HTTP Request Type"

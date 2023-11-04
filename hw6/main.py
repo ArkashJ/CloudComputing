@@ -1,3 +1,4 @@
+import csv
 import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
@@ -5,7 +6,9 @@ from typing import Optional
 import pymysql
 import sqlalchemy
 from dotenv import load_dotenv
+from flask import Flask, Response, request
 from google.api_core import exceptions
+from google.cloud import storage
 from google.cloud.sql.connector import Connector
 
 load_dotenv()
@@ -40,12 +43,14 @@ def get_data():
     try:
         print("establishing connection")
         with pool.connect() as conn:
-            res = conn.execute(
-                sqlalchemy.text("SELECT COUNT(*) FROM `request`")
-            ).fetchall()
+            #res = conn.execute(sqlalchemy.text("SELECT * FROM `request`")).fetchall()
+            res = conn.execute(sqlalchemy.text("SELECT * FROM `request_time`")).fetchall()
+            with open("failure.csv", "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerows(res)
             conn.commit()
             conn.close()
-            return res
+            print("connection closed")
     except exceptions.GoogleAPIError as err:
         print(err)
         return None
