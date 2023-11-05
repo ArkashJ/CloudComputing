@@ -39,11 +39,10 @@ pool = sqlalchemy.create_engine(
 )
 
 
-def get_data():
+def get_failure_data():
     try:
         print("establishing connection")
         with pool.connect() as conn:
-            #res = conn.execute(sqlalchemy.text("SELECT * FROM `request`")).fetchall()
             res = conn.execute(sqlalchemy.text("SELECT * FROM `request_time`")).fetchall()
             with open("failure.csv", "w", newline="") as f:
                 writer = csv.writer(f)
@@ -55,9 +54,23 @@ def get_data():
         print(err)
         return None
 
+def get_request_data():
+    try:
+        print("establishing connection")
+        with pool.connect() as conn:
+            res = conn.execute(sqlalchemy.text("SELECT * FROM `request`")).fetchall()
+            with open("requests.csv", "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerows(res)
+            conn.commit()
+            conn.close()
+            print("connection closed")
+    except exceptions.GoogleAPIError as err:
+        print(err)
+        return None
 
 def main():
-    print(get_data())
-
-
+    get_data()
+    get_request_data()
+    
 main()
