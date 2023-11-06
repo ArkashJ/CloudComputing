@@ -70,7 +70,7 @@ def get_request_data():
         return None
 
 def main():
-    get_data()
+    get_failure_data()
     get_request_data()
-    
+
 main()
