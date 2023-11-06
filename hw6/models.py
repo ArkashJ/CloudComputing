@@ -39,12 +39,12 @@ def country_vs_ip():
     # Use a decision tree classifier
     clf = DecisionTreeClassifier()
     clf.fit(X_train, y_train)
-    print(f"Accuracy: {clf.score(X_test, y_test)}")
+    print(f"Accuracy for country versus IP: {clf.score(X_test, y_test)}")
 
     #import random forest classifier
     country_model = RandomForestClassifier(n_estimators=100, random_state=0)
     country_model.fit(X_train, y_train)
-    print(f"Accuracy: {country_model.score(X_test, y_test)}")
+    print(f"Accuracy for country versus IP: {country_model.score(X_test, y_test)}")
     
 def income_model():
     requests = pre_process_data()
@@ -65,7 +65,7 @@ def income_model():
     #Use a decision tree classifier
     clf = DecisionTreeClassifier()
     clf.fit(X_train, y_train)
-    print(f"Accuracy: {clf.score(X_test, y_test)}")
+    print(f"Accuracy for income: {clf.score(X_test, y_test)}")
    
     
 def main():
