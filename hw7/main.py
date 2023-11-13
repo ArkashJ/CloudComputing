@@ -4,6 +4,8 @@ import re
 import apache_beam as beam
 import numpy as np
 from apache_beam.io import ReadFromText
+from apache_beam.io.fileio import (MatchAll, MatchFiles, ReadMatches,
+                                   WriteToFiles)
 from apache_beam.options.pipeline_options import PipelineOptions
 from google.cloud import storage
 
@@ -69,4 +71,42 @@ def main(argv=None, save_main_session=True):
     pipeline_options.view_as(StandardOptions).runner = "DirectRunner"
 
     with beam.Pipeline(options=pipeline_options) as p:
-        lines = p | ReadFromText(known_args.input_path)
+        # extract the file name and file content
+        get_files_from_bucket = (
+            lines
+            | "Match the files" >> MatchFiles(known_args.input_path)
+            | "Convert to readable format" >> ReadMatches()
+            | "Read the files" >> beam.Map(lambda x: (x.metadata.path, x.read_utf8()))
+        )
+
+        # extract the links from the file content
+        extract_links = get_files_from_bucket | "Extract outgoing links" >> beam.ParDo(
+            ExtractHTMLLinks()
+        )
+
+        # Get the count per key
+        count_links = extract_links | "Count the links" >> beam.combiners.Count.PerKey()
+
+        # Return top 5 links
+        top_links = (
+            count_links
+            | "Get top 5 links"
+            >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
+            | "Print top 5 links" >> beam.Map(print)
+        )
+
+        # count incoming links now
+        extract_links = get_files_from_bucket | "Extract incoming links" >> beam.ParDo(
+            CountIncomingLinks()
+        )
+
+        # Get the count per key
+        count_links = extract_links | "Count the links" >> beam.combiners.Count.PerKey()
+
+        # Return top 5 links
+        top_incoming_links = (
+            count_links
+            | "Get top 5 links"
+            >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
+            | "Print top 5 links" >> beam.Map(print)
+        )
