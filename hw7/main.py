@@ -29,8 +29,21 @@ class ExtractHTMLLinks(beam.DoFn):
         links = pattern.findall(file_content)
         # for each link, we get the file number and link
         for link in links:
-            f_path = file_name.split("/")[-1].split(".")[0]
-            yield f_path, link
+            f_path = file_name.split("/")[-1]
+            f_name = f_path.split(".")[0]
+            yield f_name, link
+
+
+class CountIncomingLinks(beam.DoFn):
+    def process(self, element):
+        file_name, file_content = element
+        pattern = re.compile(r'a< HREF="(\d+).html">')
+        links = pattern.findall(file_content)
+        for link in links:
+            f_path = file_name.split(".")[0]
+            # for each link, assign the value of 1 per each occurence
+            # later on we shall sum the values to get the total number of incoming links
+            yield f_path, 1
 
 
 def main(argv=None, save_main_session=True):
