@@ -96,15 +96,10 @@ def main(argv=None, save_main_session=True):
             | "Decode file contents" >> beam.Map(lambda x: (x.metadata.path, x.read()))
         )
 
-        # extract the links from the file content
         extract_links = get_files_from_bucket | "Extract outgoing links" >> beam.ParDo(
             ExtractHTMLLinks()
         )
-
-        # Get the count per key
         count_links = extract_links | "Count the links" >> beam.combiners.Count.PerKey()
-
-        # Return top 5 links
         top_links = (
             count_links
             | "Get top 5 links"
@@ -114,18 +109,13 @@ def main(argv=None, save_main_session=True):
             # >> WriteToFiles(known_args.output_path, file_naming="outgoing_links")
         )
 
-        # count incoming links now
         extract_incoming_links = (
             get_files_from_bucket
             | "Extract incoming links" >> beam.ParDo(CountIncomingLinks())
         )
-
-        # Get the count per key
         count_incoming_links = (
             extract_incoming_links | "Reduce the keys" >> beam.combiners.Count.PerKey()
         )
-
-        # Return top 5 links
         top_incoming_links = (
             count_incoming_links
             | "Count frequency of top 5 links"
