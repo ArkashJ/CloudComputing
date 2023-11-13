@@ -93,20 +93,31 @@ def main(argv=None, save_main_session=True):
             | "Get top 5 links"
             >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
             | "Print top 5 links" >> beam.Map(print)
+            | "Write to file"
+            >> WriteToFiles(known_args.output_path, file_naming="outgoing_links")
         )
 
         # count incoming links now
-        extract_links = get_files_from_bucket | "Extract incoming links" >> beam.ParDo(
-            CountIncomingLinks()
+        extract_incoming_links = (
+            get_files_from_bucket
+            | "Extract incoming links" >> beam.ParDo(CountIncomingLinks())
         )
 
         # Get the count per key
-        count_links = extract_links | "Count the links" >> beam.combiners.Count.PerKey()
+        count_incoming_links = (
+            extract_incoming_links | "Count the links" >> beam.combiners.Count.PerKey()
+        )
 
         # Return top 5 links
         top_incoming_links = (
-            count_links
+            count_incoming_links
             | "Get top 5 links"
             >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
             | "Print top 5 links" >> beam.Map(print)
+            | "Write to file"
+            >> WriteToFiles(known_args.output_path, file_naming="incoming_links")
         )
+
+
+if __name__ == "__main__":
+    main()
