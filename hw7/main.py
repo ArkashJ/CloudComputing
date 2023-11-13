@@ -17,7 +17,6 @@ MAX_NUM_FILES: int = 10000
 input_path = "gs://hw2-arkjain-mini-internet/mini_internet_test/"
 output_path = "gs://hw7-ds561-apache-beam/output/"
 
-
 class ExtractHTMLLinks(beam.DoFn):
     def process(self, element):
         file_name, file_content = element
@@ -25,6 +24,7 @@ class ExtractHTMLLinks(beam.DoFn):
         file_content = file_content.decode("utf-8")
         links = re.findall(pattern, file_content)
         # for each link, we get the file number and link
+        print("Got the in links, yielding")
         for link in links:
             f_path = file_name.split("/")[-1]
             f_name = f_path.split(".")[0]
@@ -37,6 +37,7 @@ class CountIncomingLinks(beam.DoFn):
         pattern = re.compile(r'<a HREF="(\d+).html">')
         file_content = file_content.decode("utf-8")
         links = pattern.findall(file_content)
+        print("Got the out links, yielding")
         for link in links:
             f_path = link.split(".")[0]
             # for each link, assign the value of 1 per each occurence
@@ -78,7 +79,6 @@ def main(argv=None, save_main_session=True):
 
     setup_options = pipeline_options.view_as(SetupOptions)
     setup_options.requirements_file = "./requirements.txt"
-    print("Gcloud done")
 
     print("Starting pipeline")
     with beam.Pipeline(options=pipeline_options) as p:
@@ -94,7 +94,10 @@ def main(argv=None, save_main_session=True):
         extract_links = get_files_from_bucket | "Extract outgoing links" >> beam.ParDo(
             ExtractHTMLLinks()
         )
+
+        print("Counting links")
         count_links = extract_links | "Count the links" >> beam.combiners.Count.PerKey()
+        print("Getting top 5 links")
         top_links = (
             count_links
             | "Get top 5 links"
