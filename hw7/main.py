@@ -17,17 +17,6 @@ MAX_NUM_FILES: int = 10000
 input_path = "gs://hw2-arkjain-mini-internet/mini_internet_test/"
 output_path = "gs://hw7-ds561-apache-beam/output/"
 
-# beam_options = PipelineOptions(
-#     runner="DirectRunner",
-#     project="cloudcomputingcourse-398918",
-#     job_name="count-links-in-mini-internet",
-#     temp_location="gs://hw7-ds561-apache-beam/temp/",
-#     region="us-central1",
-# )
-#
-# pipeline = beam.Pipeline(options=beam_options)
-#
-
 
 class ExtractHTMLLinks(beam.DoFn):
     def process(self, element):
@@ -75,27 +64,33 @@ def main(argv=None, save_main_session=True):
     known_args, pipeline_args = parser.parse_known_args(argv)
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-    pipeline_options.view_as(StandardOptions).runner = "DirectRunner"
+    # for local testing
+    # pipeline_options.view_as(StandardOptions).runner = "DirectRunner"
 
-    # google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
-    # google_cloud_options.project = "cloudcomputingcourse-398918"
-    # google_cloud_options.region = "us-central1"
-    # google_cloud_options.job_name = "count-links-in-mini-internet"
-    # google_cloud_options.staging_location = "gs://hw7-ds561-apache-beam/staging"
-    # google_cloud_options.temp_location = "gs://hw7-ds561-apache-beam/temp"
-    #
-    # setup_options = pipeline_options.view_as(SetupOptions)
-    # setup_options.requirements_file = "requirements.txt"
+    # for cloud testing
+    pipeline_options.view_as(StandardOptions).runner = "DataflowRunner"
+    google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
+    google_cloud_options.project = "cloudcomputingcourse-398918"
+    google_cloud_options.region = "us-central1"
+    google_cloud_options.job_name = "count-links-in-mini-internet"
+    google_cloud_options.staging_location = "gs://hw7-ds561-apache-beam/staging"
+    google_cloud_options.temp_location = "gs://hw7-ds561-apache-beam/temp"
 
+    setup_options = pipeline_options.view_as(SetupOptions)
+    setup_options.requirements_file = "./requirements.txt"
+    print("Gcloud done")
+
+    print("Starting pipeline")
     with beam.Pipeline(options=pipeline_options) as p:
         # extract the file name and file content
+        print("Getting files from bucket")
         get_files_from_bucket = (
             p
             | "Get files from bucket" >> MatchFiles(known_args.input_path + "*.html")
             | "Read file contents" >> ReadMatches()
             | "Decode file contents" >> beam.Map(lambda x: (x.metadata.path, x.read()))
         )
-
+        print("Extracting links")
         extract_links = get_files_from_bucket | "Extract outgoing links" >> beam.ParDo(
             ExtractHTMLLinks()
         )
