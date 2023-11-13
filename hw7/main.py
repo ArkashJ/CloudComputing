@@ -17,6 +17,7 @@ MAX_NUM_FILES: int = 10000
 input_path = "gs://hw2-arkjain-mini-internet/mini_internet_test/"
 output_path = "gs://hw7-ds561-apache-beam/output/"
 
+
 class ExtractHTMLLinks(beam.DoFn):
     def process(self, element):
         file_name, file_content = element
@@ -70,13 +71,14 @@ def main(argv=None, save_main_session=True):
 
     # for cloud testing
     pipeline_options.view_as(StandardOptions).runner = "DataflowRunner"
+
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
     google_cloud_options.project = "cloudcomputingcourse-398918"
     google_cloud_options.region = "us-central1"
     google_cloud_options.job_name = "count-links-in-mini-internet"
     google_cloud_options.staging_location = "gs://hw7-ds561-apache-beam/staging"
     google_cloud_options.temp_location = "gs://hw7-ds561-apache-beam/temp"
-
+    google_cloud_options.service_account_email = "ds561-hw7-acc@cloudcomputingcourse-398918.iam.gserviceaccount.com"
     setup_options = pipeline_options.view_as(SetupOptions)
     setup_options.requirements_file = "./requirements.txt"
 
