@@ -65,7 +65,7 @@ def main():
         "--num_files",
         help="Specify the number of files to generate",
         type=int,
-        default=50,
+        default=10000,
     )
     parser.add_argument(
         "-m",

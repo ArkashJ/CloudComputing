@@ -3,7 +3,6 @@ import re
 
 import apache_beam as beam
 import numpy as np
-import tqdm as tqmd
 from apache_beam.io import ReadFromText
 from apache_beam.io.fileio import (MatchAll, MatchFiles, ReadMatches,
                                    WriteToFiles)
@@ -18,22 +17,24 @@ MAX_NUM_FILES: int = 10000
 input_path = "gs://hw2-arkjain-mini-internet/mini_internet_test/"
 output_path = "gs://hw7-ds561-apache-beam/output/"
 
-beam_options = PipelineOptions(
-    runner="DataflowRunner",
-    project="cloudcomputingcourse-398918",
-    job_name="count-links-in-mini-internet",
-    temp_location="gs://hw7-ds561-apache-beam/temp/",
-    region="us-central1",
-)
-
-pipeline = beam.Pipeline(options=beam_options)
+# beam_options = PipelineOptions(
+#     runner="DirectRunner",
+#     project="cloudcomputingcourse-398918",
+#     job_name="count-links-in-mini-internet",
+#     temp_location="gs://hw7-ds561-apache-beam/temp/",
+#     region="us-central1",
+# )
+#
+# pipeline = beam.Pipeline(options=beam_options)
+#
 
 
 class ExtractHTMLLinks(beam.DoFn):
     def process(self, element):
         file_name, file_content = element
-        pattern = re.compile(r'a< HREF="(\d+).html">')
-        links = pattern.findall(file_content)
+        pattern = re.compile(r'<a HREF="(\d+).html">')
+        file_content = file_content.decode("utf-8")
+        links = re.findall(pattern, file_content)
         # for each link, we get the file number and link
         for link in links:
             f_path = file_name.split("/")[-1]
@@ -44,10 +45,11 @@ class ExtractHTMLLinks(beam.DoFn):
 class CountIncomingLinks(beam.DoFn):
     def process(self, element):
         file_name, file_content = element
-        pattern = re.compile(r'a< HREF="(\d+).html">')
+        pattern = re.compile(r'<a HREF="(\d+).html">')
+        file_content = file_content.decode("utf-8")
         links = pattern.findall(file_content)
         for link in links:
-            f_path = file_name.split(".")[0]
+            f_path = link.split(".")[0]
             # for each link, assign the value of 1 per each occurence
             # later on we shall sum the values to get the total number of incoming links
             yield f_path, 1
@@ -73,25 +75,25 @@ def main(argv=None, save_main_session=True):
     known_args, pipeline_args = parser.parse_known_args(argv)
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-    pipeline_options.view_as(StandardOptions).runner = "DataflowRunner"
+    pipeline_options.view_as(StandardOptions).runner = "DirectRunner"
 
-    google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
-    google_cloud_options.project = "cloudcomputingcourse-398918"
-    google_cloud_options.region = "us-central1"
-    google_cloud_options.job_name = "count-links-in-mini-internet"
-    google_cloud_options.staging_location = "gs://hw7-ds561-apache-beam/staging"
-    google_cloud_options.temp_location = "gs://hw7-ds561-apache-beam/temp"
+    # google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
+    # google_cloud_options.project = "cloudcomputingcourse-398918"
+    # google_cloud_options.region = "us-central1"
+    # google_cloud_options.job_name = "count-links-in-mini-internet"
+    # google_cloud_options.staging_location = "gs://hw7-ds561-apache-beam/staging"
+    # google_cloud_options.temp_location = "gs://hw7-ds561-apache-beam/temp"
+    #
+    # setup_options = pipeline_options.view_as(SetupOptions)
+    # setup_options.requirements_file = "requirements.txt"
 
-    setup_options = pipeline_options.view_as(SetupOptions)
-    setup_options.requirements_file = "requirements.txt"
-
-    with tqmd(beam.Pipeline(options=pipeline_options)) as p:
+    with beam.Pipeline(options=pipeline_options) as p:
         # extract the file name and file content
         get_files_from_bucket = (
             p
-            | "Match the files" >> MatchFiles(known_args.input_path)
-            | "Convert to readable format" >> ReadMatches()
-            | "Read the files" >> beam.Map(lambda x: (x.metadata.path, x.read_utf8()))
+            | "Get files from bucket" >> MatchFiles(known_args.input_path + "*.html")
+            | "Read file contents" >> ReadMatches()
+            | "Decode file contents" >> beam.Map(lambda x: (x.metadata.path, x.read()))
         )
 
         # extract the links from the file content
@@ -108,8 +110,8 @@ def main(argv=None, save_main_session=True):
             | "Get top 5 links"
             >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
             | "Print top 5 links" >> beam.Map(print)
-            | "Write to file"
-            >> WriteToFiles(known_args.output_path, file_naming="outgoing_links")
+            # | "Write to file"
+            # >> WriteToFiles(known_args.output_path, file_naming="outgoing_links")
         )
 
         # count incoming links now
@@ -129,8 +131,8 @@ def main(argv=None, save_main_session=True):
             | "Count frequency of top 5 links"
             >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
             | "Print top 5 incoming links" >> beam.Map(print)
-            | "Write to incoming file"
-            >> WriteToFiles(known_args.output_path, file_naming="incoming_links")
+            # | "Write to incoming file"
+            # >> WriteToFiles(known_args.output_path, file_naming="incoming_links")
         )
 
 
