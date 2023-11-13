@@ -1,15 +1,16 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from concurrent.futures import ThreadPoolExecutorimport argparse
-import time
-import re
 import os
-from google.cloud import storage
+import re
+import time
+from concurrent.futures import (ThreadPoolExecutor, ThreadPoolExecutorimport,
+                                argparse, as_completed)
 from itertools import chain
-import numpy as np
+from typing import Optional
+
 import networkx as nx
+import numpy as np
+from google.cloud import storage
 from numba import jit
 from tqdm import tqdm
-from typing import Optional
 
 MAX_NUM_FILES: int = 10000
 
