@@ -4,17 +4,17 @@ import re
 import apache_beam as beam
 import numpy as np
 from apache_beam.io import ReadFromText
-from apache_beam.io.fileio import (MatchAll, MatchFiles, ReadMatches,
-                                   WriteToFiles)
+from apache_beam.io.fileio import MatchAll, MatchFiles, ReadMatches
+from apache_beam.io.textio import WriteToText
 from apache_beam.options.pipeline_options import (GoogleCloudOptions,
                                                   PipelineOptions,
                                                   SetupOptions,
                                                   StandardOptions)
-from google.cloud import storage
+from google.cloud import logging, storage
 
 MAX_NUM_FILES: int = 10000
 
-input_path = "gs://hw2-arkjain-mini-internet/mini_internet_test/"
+input_path = "gs://hw7-ds561-apache-beam/mini_internet_test/"
 output_path = "gs://hw7-ds561-apache-beam/output/"
 
 
@@ -25,7 +25,6 @@ class ExtractHTMLLinks(beam.DoFn):
         file_content = file_content.decode("utf-8")
         links = re.findall(pattern, file_content)
         # for each link, we get the file number and link
-        print("Got the in links, yielding")
         for link in links:
             f_path = file_name.split("/")[-1]
             f_name = f_path.split(".")[0]
@@ -38,7 +37,6 @@ class CountIncomingLinks(beam.DoFn):
         pattern = re.compile(r'<a HREF="(\d+).html">')
         file_content = file_content.decode("utf-8")
         links = pattern.findall(file_content)
-        print("Got the out links, yielding")
         for link in links:
             f_path = link.split(".")[0]
             # for each link, assign the value of 1 per each occurence
@@ -70,7 +68,7 @@ def main(argv=None, save_main_session=True):
     # pipeline_options.view_as(StandardOptions).runner = "DirectRunner"
 
     # for cloud testing
-    pipeline_options.view_as(StandardOptions).runner = "DataflowRunner"
+    pipeline_options.view_as(StandardOptions).runner = "DirectRunner"
 
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
     google_cloud_options.project = "cloudcomputingcourse-398918"
@@ -78,35 +76,32 @@ def main(argv=None, save_main_session=True):
     google_cloud_options.job_name = "count-links-in-mini-internet"
     google_cloud_options.staging_location = "gs://hw7-ds561-apache-beam/staging"
     google_cloud_options.temp_location = "gs://hw7-ds561-apache-beam/temp"
-    google_cloud_options.service_account_email = "ds561-hw7-acc@cloudcomputingcourse-398918.iam.gserviceaccount.com"
+    google_cloud_options.service_account_email = (
+        "ds561-hw7-acc@cloudcomputingcourse-398918.iam.gserviceaccount.com"
+    )
     setup_options = pipeline_options.view_as(SetupOptions)
     setup_options.requirements_file = "./requirements.txt"
 
-    print("Starting pipeline")
     with beam.Pipeline(options=pipeline_options) as p:
         # extract the file name and file content
-        print("Getting files from bucket")
         get_files_from_bucket = (
             p
             | "Get files from bucket" >> MatchFiles(known_args.input_path + "*.html")
             | "Read file contents" >> ReadMatches()
             | "Decode file contents" >> beam.Map(lambda x: (x.metadata.path, x.read()))
         )
-        print("Extracting links")
         extract_links = get_files_from_bucket | "Extract outgoing links" >> beam.ParDo(
             ExtractHTMLLinks()
         )
 
-        print("Counting links")
         count_links = extract_links | "Count the links" >> beam.combiners.Count.PerKey()
-        print("Getting top 5 links")
         top_links = (
             count_links
             | "Get top 5 links"
             >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
+            | "Write to file"
+            >> WriteToText(f"{known_args.output_path}/outgoing_links.txt")
             | "Print top 5 links" >> beam.Map(print)
-            # | "Write to file"
-            # >> WriteToFiles(known_args.output_path, file_naming="outgoing_links")
         )
 
         extract_incoming_links = (
@@ -120,9 +115,9 @@ def main(argv=None, save_main_session=True):
             count_incoming_links
             | "Count frequency of top 5 links"
             >> beam.transforms.combiners.Top.Of(5, key=lambda x: x[1])
+            | "Write to incoming file"
+            >> WriteToText(f"{known_args.output_path}/incoming_links.txt")
             | "Print top 5 incoming links" >> beam.Map(print)
-            # | "Write to incoming file"
-            # >> WriteToFiles(known_args.output_path, file_naming="incoming_links")
         )
 
 
