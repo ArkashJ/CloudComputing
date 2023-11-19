@@ -71,6 +71,7 @@ pandas==2.1.2
 Pillow==10.1.0
 proto-plus==1.22.3
 protobuf==4.24.3
+pyarrow==11.0.0
 pyasn1==0.5.0
 pyasn1-modules==0.3.0
 pydantic==2.4.2
@@ -98,6 +99,7 @@ tzlocal==5.2
 urllib3==2.0.5
 uvicorn==0.23.2
 uvloop==0.17.0
+waitress==2.1.2
 watchdog==3.0.0
 watchfiles==0.20.0
 websockets==11.0.3
