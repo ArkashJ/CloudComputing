@@ -1,8 +1,12 @@
+from __future__ import annotations
+
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import Optional
 
 from flask import Flask, Response, request
 from google.api_core import exceptions
-from google.cloud import logging, pubsub_v1, storage
+from google.cloud import compute_v1, logging, pubsub_v1, storage
 
 app = Flask(__name__)
 
@@ -16,6 +20,27 @@ logger = client.logger(log_name)
 def make_storage_client() -> storage.Client:
     client = storage.Client().create_anonymous_client()
     return client
+
+
+def list_all_instances(
+    project_id: str,
+) -> dict[str, Iterable[compute_v1.Instance]]:
+    instance_client = compute_v1.InstancesClient()
+    request = compute_v1.AggregatedListInstancesRequest()
+    request.project = project_id
+    request.max_results = 10
+
+    agg_list = instance_client.aggregated_list(request=request)
+
+    all_instances = defaultdict(list)
+    print("Instances found:")
+    for zone, response in agg_list:
+        if response.instances:
+            all_instances[zone].extend(response.instances)
+            print(f" {zone}:")
+            for instance in response.instances:
+                print(f" - {instance.name} ({instance.machine_type})")
+    return all_instances
 
 
 def get_files_from_bucket(
