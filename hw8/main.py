@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from collections import defaultdict
-from collections.abc import Iterable
 from typing import Optional
 
 from flask import Flask, Response, request
@@ -22,25 +18,26 @@ def make_storage_client() -> storage.Client:
     return client
 
 
-def list_all_instances(
-    project_id: str,
-) -> dict[str, Iterable[compute_v1.Instance]]:
-    instance_client = compute_v1.InstancesClient()
-    request = compute_v1.AggregatedListInstancesRequest()
-    request.project = project_id
-    request.max_results = 10
-
-    agg_list = instance_client.aggregated_list(request=request)
-
-    all_instances = defaultdict(list)
-    print("Instances found:")
-    for zone, response in agg_list:
-        if response.instances:
-            all_instances[zone].extend(response.instances)
-            print(f" {zone}:")
-            for instance in response.instances:
-                print(f" - {instance.name} ({instance.machine_type})")
-    return all_instances
+#
+# def list_all_instances(
+#     project_id: str,
+# ) -> dict[str, Iterable[compute_v1.Instance]]:
+#     instance_client = compute_v1.InstancesClient()
+#     request = compute_v1.AggregatedListInstancesRequest()
+#     request.project = project_id
+#     request.max_results = 10
+#
+#     agg_list = instance_client.aggregated_list(request=request)
+#
+#     all_instances = defaultdict(list)
+#     print("Instances found:")
+#     for zone, response in agg_list:
+#         if response.instances:
+#             all_instances[zone].extend(response.instances)
+#             print(f" {zone}:")
+#             for instance in response.instances:
+#                 print(f" - {instance.name} ({instance.machine_type})")
+#     return all_instances
 
 
 def get_files_from_bucket(
@@ -115,15 +112,16 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         if request.method == "GET":
             requets_headers = dict(request.headers.items())
             print("headers: ", requets_headers)
+            logger.log_text(f"Zone is {request.headers.get('X-vm-zone')}")
             if request.headers.get("X-country") is not None:
                 country = request.headers.get("X-country")
-                print(f"country: ------- {country}")
                 if check_if_country_is_enemy(country):
                     err_msg = f"The country of {country} is an enemy country"
                     future = publisher.publish(topic_path, err_msg.encode("utf-8"))
                     logger.log_text(
                         f"Error, the country of {country} is an enemy country, Status: 400"
                     )
+
                     return Response(err_msg, status=400, mimetype="text/plain")
 
             return get_files_from_bucket(bucket_name, dir, file)

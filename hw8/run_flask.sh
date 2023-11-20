@@ -8,4 +8,5 @@ echo "installing requirements"
 cd $curr_path
 sudo pip3 install -r requirements.txt
 echo "running flask app"
+export ZONE=us-central1-a
 waitress-serve --host 0.0.0.0 --port=5000 main:app &
