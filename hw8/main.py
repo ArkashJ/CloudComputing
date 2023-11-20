@@ -136,6 +136,3 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         err_msg = "Error, wrong HTTP Request Type"
         # logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
         return Response(err_msg, status=501, mimetype="text/plain")
-
-
-# sudo journalctl -u google-startup-scripts.service -f
