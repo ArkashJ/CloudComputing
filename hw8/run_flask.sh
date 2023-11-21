@@ -9,4 +9,4 @@ cd "/home/arkjain/hw8-files"
 sudo apt install python3-pip -y
 pip3 install -r requirements.txt
 export ZONE=us-central1-a
-waitress-serve --host 0.0.0.0 --port=5000 main:app &
+waitress-serve --host 0.0.0.0 --port=80 main:app &

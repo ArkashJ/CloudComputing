@@ -1,4 +1,5 @@
 #!env python3
+from dotenv import load_dotenv
 import argparse
 import http.client
 import os
@@ -8,9 +9,11 @@ import ssl
 from datetime import date
 from urllib.parse import urljoin
 
-from dotenv import load_dotenv
-
 load_dotenv()
+ZONE = os.getenv("ZONE")
+if ZONE is None:
+    ZONE = "None"
+
 list_of_countries = [
     "Afghanistan",
     "Albania",
@@ -223,12 +226,6 @@ list_of_incomes = [
     "250k+",
 ]
 
-# Setting the zone and if not set, default to "default"
-ZONE = os.environ["ZONE"]
-if not ZONE:
-    ZONE = "default"
-
-
 cidr_dict = {}
 used_cidrs = []
 
@@ -308,7 +305,7 @@ def build_headers(country, ip):
     today = str(date.today())
     time_of_day = random.randrange(0, 24)
     time_str = today + " " + format(time_of_day, "02d") + ":00:00"
-    headers.update({"X-time": time_str})
+    headers.update({"X-time": time_str}) 
     return headers
 
 
@@ -327,6 +324,7 @@ def make_request(
     conn.request("GET", filename, headers=headers)
     res = conn.getresponse()
     data = res.read()
+    print(res.headers.get("X-vm-zone"))
     if verbose:
         print(res.status, res.reason)
         print(res.msg)
