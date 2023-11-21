@@ -1,5 +1,4 @@
 #!env python3
-
 import argparse
 import http.client
 import os
@@ -9,6 +8,9 @@ import ssl
 from datetime import date
 from urllib.parse import urljoin
 
+from dotenv import load_dotenv
+
+load_dotenv()
 list_of_countries = [
     "Afghanistan",
     "Albania",

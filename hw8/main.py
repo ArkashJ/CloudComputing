@@ -7,37 +7,9 @@ from google.cloud import compute_v1, logging, pubsub_v1, storage
 app = Flask(__name__)
 
 
-client = logging.Client()
-log_name = "requester_countries_logs"
-client.setup_logging()
-logger = client.logger(log_name)
-
-
 def make_storage_client() -> storage.Client:
     client = storage.Client().create_anonymous_client()
     return client
-
-
-#
-# def list_all_instances(
-#     project_id: str,
-# ) -> dict[str, Iterable[compute_v1.Instance]]:
-#     instance_client = compute_v1.InstancesClient()
-#     request = compute_v1.AggregatedListInstancesRequest()
-#     request.project = project_id
-#     request.max_results = 10
-#
-#     agg_list = instance_client.aggregated_list(request=request)
-#
-#     all_instances = defaultdict(list)
-#     print("Instances found:")
-#     for zone, response in agg_list:
-#         if response.instances:
-#             all_instances[zone].extend(response.instances)
-#             print(f" {zone}:")
-#             for instance in response.instances:
-#                 print(f" - {instance.name} ({instance.machine_type})")
-#     return all_instances
 
 
 def get_files_from_bucket(
@@ -46,16 +18,15 @@ def get_files_from_bucket(
     file_name: str,
 ) -> Optional[str]:
     try:
-        client = make_storage_client()
-        prefix: str = f"{folder_name}/{file_name}"
-        bucket = client.get_bucket(bucket_name)
-        blob = bucket.get_blob(prefix)
-        blob_content = blob.download_as_string()
-        logger.log_text("Status: 200")
-        return Response(blob_content, status=200, mimetype="text/html")
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        prefix = folder_name + "/" + file_name
+        blobs = bucket.blob(prefix)
+        if blobs.exists():
+            print("File exists")
+            return Response(blobs.download_as_string(), mimetype="text/html")
     except exceptions.NotFound:
         err_msg: str = "Error file not found"
-        logger.log_text(f"Error file not found: {err_msg}, Status: 404")
         return Response(err_msg, status=404, mimetype="text/plain")
 
 
@@ -85,7 +56,9 @@ LIST_OF_ENEMY_COUNTRIES: list[str] = [
 def check_if_country_is_enemy(
     country: str,
 ) -> bool:
-    return country in LIST_OF_ENEMY_COUNTRIES
+    if country in LIST_OF_ENEMY_COUNTRIES:
+        return True
+    return False
 
 
 @app.route(
@@ -110,25 +83,26 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
     print(bucket_name, dir, file)
     try:
         if request.method == "GET":
-            requets_headers = dict(request.headers.items())
-            print("headers: ", requets_headers)
-            logger.log_text(f"Zone is {request.headers.get('X-vm-zone')}")
-            if request.headers.get("X-country") is not None:
-                country = request.headers.get("X-country")
+            request_headers = dict(request.headers.items())
+            print("headers: ", request_headers)
+            # logger.log_text(f"Zone is {request.headers.get('X-vm-zone')}")
+            print("Country is ", request.headers.get("X-Country"))
+            if request.headers.get("X-Country") is not None:
+                country = request.headers.get("X-Country")
+                print(f"Vm zone is {request.headers.get('X-vm-zone')}")
+                print("Checking if the country is an enemy ", country)
                 if check_if_country_is_enemy(country):
                     err_msg = f"The country of {country} is an enemy country"
-                    future = publisher.publish(topic_path, err_msg.encode("utf-8"))
-                    logger.log_text(
-                        f"Error, the country of {country} is an enemy country, Status: 400"
-                    )
-
+                    print("publishing")
+                    publisher.publish(topic_path, err_msg.encode("utf-8"))
+                    print("published")
                     return Response(err_msg, status=400, mimetype="text/plain")
-
+                print("Country is not an enemy country")
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
             err_msg = "Error, wrong HTTP Request Type"
             print(err_msg)
-            logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
+            # logger.log_text(f"Error, wrong HTTP Request Type, Status: 501")
             return Response(err_msg, status=501, mimetype="text/plain")
     except:
         err_msg = "Error, wrong HTTP Request Type"
