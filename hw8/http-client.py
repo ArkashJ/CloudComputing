@@ -1,5 +1,4 @@
 #!env python3
-from dotenv import load_dotenv
 import argparse
 import http.client
 import os
@@ -8,11 +7,6 @@ import random
 import ssl
 from datetime import date
 from urllib.parse import urljoin
-
-load_dotenv()
-ZONE = os.getenv("ZONE")
-if ZONE is None:
-    ZONE = "None"
 
 list_of_countries = [
     "Afghanistan",
@@ -296,7 +290,6 @@ def get_list_item(lst):
 
 def build_headers(country, ip):
     headers = {}
-    headers.update({"X-vm-zone": ZONE})
     headers.update({"X-country": country})
     headers.update({"X-client-IP": ip})
     headers.update({"X-gender": get_list_item(list_of_genders)})

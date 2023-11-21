@@ -102,7 +102,7 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                     print("published")
                     return Response(err_msg, status=400, mimetype="text/plain")
                 print("Country is not an enemy country")
-            request.headers.update({"X-vm-zone": ZONE})
+            request.headers.set({"X-vm-zone": ZONE})
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
             err_msg = "Error, wrong HTTP Request Type"
