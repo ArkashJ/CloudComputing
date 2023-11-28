@@ -1,16 +1,16 @@
 import os
 from typing import Optional
 
+import google.cloud.logging
 from flask import Flask, Response, request
 from google.api_core import exceptions
-from google.cloud import pubsub_v1, storage, logging
+from google.cloud import pubsub_v1, storage
 
 app = Flask(__name__)
+logging_client = logging.Client()
+log_name = "my-log"
+logger = logging_client.logger(log_name)
 
-client = logging.Client()
-log_name = "requester_countries_logs"
-client.setup_logging()
-logger = client.logger(log_name)
 
 def make_storage_client() -> storage.Client:
     client = storage.Client()
@@ -113,5 +113,7 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         print(err_msg)
         logger.log_text(f"{err_msg}, returning 501")
         return Response(err_msg, status=501, mimetype="text/plain")
+
+
 if __name__ == "__main__":
     app.run(debug=True)
