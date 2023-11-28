@@ -6,4 +6,4 @@ RUN pip3 install -r requirements.txt
 
 COPY main.py .
 
-CMD flask --app main run --host=127.0.0.1 --port=8000
+CMD ["python3", "-m", "flask", "run", "--port=8000"]

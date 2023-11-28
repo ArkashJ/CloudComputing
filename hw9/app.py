@@ -3,10 +3,14 @@ from typing import Optional
 
 from flask import Flask, Response, request
 from google.api_core import exceptions
-from google.cloud import pubsub_v1, storage
+from google.cloud import pubsub_v1, storage, logging
 
 app = Flask(__name__)
 
+client = logging.Client()
+log_name = "requester_countries_logs"
+client.setup_logging()
+logger = client.logger(log_name)
 
 def make_storage_client() -> storage.Client:
     client = storage.Client()
@@ -25,9 +29,11 @@ def get_files_from_bucket(
         blobs = bucket.blob(prefix)
         if blobs.exists():
             print("File exists")
+            logger.log_text(f"File {prefix} exists")
             return Response(blobs.download_as_string(), mimetype="text/html")
     except exceptions.NotFound:
         err_msg: str = "Error file not found"
+        logger.log_text(f"File {prefix} not found, returning 404")
         return Response(err_msg, status=404, mimetype="text/plain")
 
 
@@ -93,13 +99,19 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
                     err_msg = f"The country of {country} is an enemy country"
                     publisher.publish(topic_path, err_msg.encode("utf-8"))
                     print("published")
+                    logger.log_text(f"{err_msg}, returning 400")
                     return Response(err_msg, status=400, mimetype="text/plain")
                 print("Country is not an enemy country")
             return get_files_from_bucket(bucket_name, dir, file)
         elif request.method != "GET":
             err_msg = "Error, wrong HTTP Request Type"
             print(err_msg)
+            logger.log_text(f"{err_msg}, returning 501")
             return Response(err_msg, status=501, mimetype="text/plain")
     except:
         err_msg = "Error, wrong HTTP Request Type"
+        print(err_msg)
+        logger.log_text(f"{err_msg}, returning 501")
         return Response(err_msg, status=501, mimetype="text/plain")
+if __name__ == "__main__":
+    app.run(debug=True)
