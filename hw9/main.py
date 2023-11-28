@@ -3,7 +3,7 @@ from typing import Optional
 
 from flask import Flask, Response, request
 from google.api_core import exceptions
-from google.cloud import compute_v1, logging, pubsub_v1, storage
+from google.cloud import pubsub_v1, storage
 
 app = Flask(__name__)
 
