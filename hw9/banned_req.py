@@ -1,6 +1,5 @@
 # type: ignore
-from google.cloud import pubsub_v1
-from google.cloud import logging
+from google.cloud import logging, pubsub_v1
 
 client = logging.Client()
 log_name = "requester_countries_logs"
@@ -16,12 +15,10 @@ def callback(message):
 
 def create_subscription():
     subscriber_name = "banned_request_countries-sub"
-    PROJECT_ID= "cloudcomputingcourse-398918"
+    PROJECT_ID = "cloudcomputingcourse-398918"
     subscriber = pubsub_v1.SubscriberClient()
 
-    subscription_path = subscriber.subscription_path(
-            PROJECT_ID, subscriber_name
-            )
+    subscription_path = subscriber.subscription_path(PROJECT_ID, subscriber_name)
     with subscriber:
         future = subscriber.subscribe(subscription_path, callback)
         try:

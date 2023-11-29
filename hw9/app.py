@@ -1,10 +1,9 @@
 import os
 from typing import Optional
 
-import google.cloud.logging
 from flask import Flask, Response, request
 from google.api_core import exceptions
-from google.cloud import pubsub_v1, storage
+from google.cloud import logging, pubsub_v1, storage
 
 app = Flask(__name__)
 logging_client = logging.Client()
