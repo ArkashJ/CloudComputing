@@ -1,5 +1,39 @@
 resources:
-  resources:
+  # make a service account with relevant permissions
+  - name: ds561-hw10-service-acc 
+    type: iam.v1.serviceAccount
+    properties:
+      accountId: ds561-hw10-service-acc 
+      displayName: ds561-hw10-service-acc
+      project: cloudcomputingcourse-398918
+  
+  # make a cloud sql instance
+  - name: ds561-hw10-cloud-sql
+    type: sqladmin.v1beta4.instance
+    properties:
+      name: ds561-hw10-cloud-sql
+      region: us-central1
+      instanceType: CLOUD_SQL_INSTANCE
+      maxDiskSize: 100000000000
+      databaseVersion: MYSQL_8_0 
+      settings:
+        tier: db-custom-4-16384
+        ipConfiguration:
+          ipv4Enabled: true
+          privateNetwork: https://www.googleapis.com/compute/v1/projects/cloudcomputingcourse-398918/global/networks/default
+        backupConfiguration:
+          enabled: true
+          binaryLogEnabled: true
+
+  # making a database
+  - name: ds561-hw10-db
+    type: sqladmin.v1beta4.database
+    properties:
+      name: ds561-hw10-db
+      instance: $(ref.ds561-hw10-cloud-sql.name)
+      charset: utf8
+
+
   - name: web-server-vm
     type: compute.v1.instance
     properties:
@@ -17,6 +51,10 @@ resources:
         accessConfigs:
         - name: External NAT
           type: ONE_TO_ONE_NAT
+    # make a startup script to install pub sub client
+    
+              
+              
   - name: pubsub-vm
     type: compute.v1.instance
     properties:
@@ -34,3 +72,16 @@ resources:
         accessConfigs:
         - name: External NAT
           type: ONE_TO_ONE_NAT
+    
+    # make a service account with relevant permissions
+  - name: env['name']
+    type: pubsub.v1.topic
+    properties:
+        topic: env['name']
+    accessControl:
+      gcpIamPolicy:
+        bindings:
+        - role: roles/pubsub.subscriber
+        members:
+         - "serviceAccount:$(ref.{{ properties['serviceAccountId'] }}.email)"
+

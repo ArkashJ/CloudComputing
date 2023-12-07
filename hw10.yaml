@@ -1,0 +1,278 @@
+resources:
+
+#
+# SQL
+#
+
+# create a SQL instance
+- name: ds561-ptrandev-sql-instance-hw10
+  type: sqladmin.v1beta4.instance
+  properties:
+    name: ds561-ptrandev-sql-instance-hw10
+    region: us-east4
+    databaseVersion: MYSQL_8_0
+    maxDiskSize: 100000000000
+    settings:
+      tier: db-custom-4-16384
+      backupConfiguration:
+        enabled: true
+      ipConfiguration:
+        ipv4Enabled: true
+    instanceType: CLOUD_SQL_INSTANCE
+
+# create a database in the SQL instance, for storing our success/fail requests
+- type: sqladmin.v1beta4.database
+  name: ds561-ptrandev-sql-db-hw10
+  properties:
+    name: ds561-ptrandev-sql-db-hw10
+    instance: $(ref.ds561-ptrandev-sql-instance-hw10.name)
+
+#
+# SERVICE ACCOUNTS
+#
+
+# Create a service account for the web server VM
+- name: web-server-sa-hw10
+  type: iam.v1.serviceAccount
+  properties:
+    accountId: web-server-sa-hw10
+    displayName: web-server-sa-hw10
+
+# Create a service account for the forbidden countries VM
+- name: forbidden-countries-sa-hw10
+  type: iam.v1.serviceAccount
+  properties:
+    accountId: forbidden-countries-sa-hw10
+    displayName: forbidden-countries-sa-hw10
+
+#
+# STORAGE BUCKETS
+#
+
+# Create a storage bucket for storing our mini-web
+- name: ds561-ptrandev-mini-web-hw10
+  type: storage.v1.bucket
+  properties:
+    location: us-east4
+    storageClass: STANDARD
+
+# Create a pub/sub topic for our banned countries
+- name: banned-countries-topic-hw10
+  type: pubsub.v1.topic
+  properties:
+    topic: banned-countries-topic-hw10
+  accessControl:
+    gcpIamPolicy:
+      bindings:
+      - role: roles/pubsub.publisher
+        members: serviceAccount:$(ref.web-server-sa-hw10.email)
+
+#
+# PUB/SUB
+#
+
+# Create a pub/sub subscription for our banned countries
+- name: banned-countries-subscription-hw10
+  type: pubsub.v1.subscription
+  properties:
+    subscription: banned-countries-subscription-hw10
+    topic: $(ref.banned-countries-topic-hw10.name)
+    ackDeadlineSeconds: 10
+
+# give the service account permissions to access our mini-web bucket
+- name: ds561-ptrandev-mini-web-hw10-binding
+  type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
+  properties:
+    bucket: $(ref.ds561-ptrandev-mini-web-hw10.name)
+    member: serviceAccount:$(ref.web-server-sa-hw10.email)
+    role: roles/storage.admin
+
+#
+# SERVICE ACCOUNT BINDINGS
+#
+
+# give the service accounts permissions to access our bucket containing the flask app
+- name: ds561-ptrandev-hw10-binding
+  type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
+  properties:
+    bucket: ds561-ptrandev-hw10
+    member: serviceAccount:$(ref.web-server-sa-hw10.email)
+    role: roles/storage.objectViewer
+- name: ds561-ptrandev-hw10-forbidden-requests-binding
+  type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
+  properties:
+    bucket: ds561-ptrandev-hw10
+    member: serviceAccount:$(ref.forbidden-countries-sa-hw10.email)
+    role: roles/storage.objectViewer
+
+# create a binding for allUsers to be able to view the contents of our mini-web bucket
+- name: mini-web-hw10-allUsers-binding
+  type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
+  properties:
+    bucket: $(ref.ds561-ptrandev-mini-web-hw10.name)
+    member: allUsers
+    role: roles/storage.objectViewer
+
+# create a binding for web-server-sa to have access to SQL instance
+- name: ds561-ptrandev-sql-instance-hw10-binding
+  type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
+  properties:
+    resource: ds561-trial-project
+    member: serviceAccount:$(ref.web-server-sa-hw10.email)
+    role: roles/cloudsql.client
+
+# create a binding for cloud logging
+- name: cloud-logging-hw10-binding
+  type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
+  properties:
+    resource: ds561-trial-project
+    role: roles/logging.logWriter
+    member: serviceAccount:$(ref.web-server-sa-hw10.email)
+
+# create a binding for forbidden-countries-sa to have access to pubsub subscription
+- name: forbidden-countries-subscription-hw10-binding
+  type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
+  properties:
+    resource: ds561-trial-project
+    member: serviceAccount:$(ref.forbidden-countries-sa-hw10.email)
+    role: roles/pubsub.subscriber
+
+#
+# FIREWALL RULES
+#
+
+# create a firewall rule to allow traffic on port 5000
+- name: allow-5000-hw10
+  type: compute.v1.firewall
+  properties:
+    network: global/networks/default
+    targetTags:
+      - allow-5000-hw10
+    allowed:
+    - IPProtocol: TCP
+      ports:
+      - 5000
+
+#
+# STATIC IP ADDRESSES
+#
+
+# create a static IP for our web server
+- name : web-server-hw10-ip
+  type: compute.v1.address
+  properties:
+    region: us-east1
+
+#
+# VIRTUAL MACHINES
+#
+
+# create a VM for our web server, n1-standard-1
+- name: web-server-hw10
+  type: compute.v1.instance
+  properties:
+    zone: us-east1-b
+    machineType: zones/us-east1-b/machineTypes/n1-standard-1
+    disks:
+    - deviceName: boot
+      type: PERSISTENT
+      boot: true
+      autoDelete: true
+      initializeParams:
+        sourceImage: projects/debian-cloud/global/images/family/debian-11
+    networkInterfaces:
+    - network: global/networks/default
+      accessConfigs:
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
+        natIP: $(ref.web-server-hw10-ip.address)
+    tags:
+      items:
+      - allow-5000-hw10
+    serviceAccounts:
+    - email: $(ref.web-server-sa-hw10.email)
+      scopes:
+        - https://www.googleapis.com/auth/cloud-platform
+        - https://www.googleapis.com/auth/pubsub
+        - https://www.googleapis.com/auth/sqlservice.admin
+    metadata:
+      dependsOn:
+      - $(ref.ds561-ptrandev-sql-instance-hw10.name)
+      - $(ref.allow-5000-hw10.name)
+      items:
+      - key: startup-script
+        value: |
+          #!/bin/bash
+          if [ -d "/root/ds561-ptrandev-hw10" ]; then
+              echo "Directory /root/ds561-ptrandev-hw10 exists."
+          else
+              # copy the files from the bucket to the directory
+              gsutil -m cp -r gs://ds561-ptrandev-hw10/web-server/ /root/
+          fi
+
+          # go to the directory where the flask app is located
+          cd /root/web-server
+
+          # install dependencies from requirements.txt
+          apt install python3-pip -y
+          pip3 install -r requirements.txt
+
+          # create a directory for the html files
+          mkdir html
+
+          # run the generate-data.py script
+          python3 generate-content.py
+
+          # copy the html folder to the bucket
+          gsutil -m cp -r html/ gs://ds561-ptrandev-mini-web-hw10
+
+          # run the flask app
+          python3 main.py
+
+# create a VM for our forbidden countries server
+- name: forbidden-countries-hw10
+  type: compute.v1.instance
+  properties:
+    zone: us-east1-b
+    machineType: zones/us-east1-b/machineTypes/f1-micro
+    disks:
+    - deviceName: boot
+      type: PERSISTENT
+      boot: true
+      autoDelete: true
+      initializeParams:
+        sourceImage: projects/debian-cloud/global/images/family/debian-11
+    networkInterfaces:
+    - network: global/networks/default
+      accessConfigs:
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
+    # associate the service account with the VM
+    serviceAccounts:
+    - email: $(ref.forbidden-countries-sa-hw10.email)
+      scopes:
+        - https://www.googleapis.com/auth/cloud-platform
+        - https://www.googleapis.com/auth/pubsub
+    metadata:
+      dependsOn:
+      - $(ref.ds561-ptrandev-sql-instance-hw10.name)
+      items:
+      - key: startup-script
+        value: |
+          #!/bin/bash
+          if [ -d "/root/ds561-ptrandev-hw10" ]; then
+              echo "Directory /root/ds561-ptrandev-hw10 exists."
+          else
+              # copy the files from the bucket to the directory
+              gsutil -m cp -r gs://ds561-ptrandev-hw10/forbidden-requests/ /root/
+          fi
+
+          # go to the directory where the flask app is located
+          cd /root/forbidden-requests
+
+          # install dependencies from requirements.txt
+          apt install python3-pip -y
+          pip3 install -r requirements.txt
+
+          # run the flask app
+          python3 forbidden-requests.py
