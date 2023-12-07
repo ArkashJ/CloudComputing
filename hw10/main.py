@@ -130,7 +130,8 @@ def receive_http_request(bucket_name, dir, file) -> Optional[Response]:
         if request.method == "GET":
             if request.headers.get("X-country") is not None:
                 country = request.headers.get("X-country")
-
+                # make db if it doesn't exist otherwise just publish data
+                create_db()
                 make_database_and_publish_data(
                     country=country,
                     gender=request.headers.get("X-gender"),
