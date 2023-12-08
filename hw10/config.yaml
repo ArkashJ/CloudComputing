@@ -40,6 +40,25 @@ resources:
       accountId: server-hw10
       displayName: server-hw10
 
+  # Create a pub/sub topic for our banned countries
+  - name: banned-countries-topic-hw10
+    type: pubsub.v1.topic
+    properties:
+      topic: banned-countries-topic-hw10
+    accessControl:
+      gcpIamPolicy:
+        bindings:
+        - role: roles/pubsub.publisher
+          members: serviceAccount:$(ref.server-hw10.email)
+
+ # Create a pub/sub subscription for our banned countries
+  - name: banned-countries-subscription-hw10
+    type: pubsub.v1.subscription
+    properties:
+      subscription: banned-countries-subscription-hw10
+      topic: $(ref.banned-countries-topic-hw10.name)
+      ackDeadlineSeconds: 10
+
   # Create a service account for the forbidden countries VM
   - name: forbidden-countries-hw10
     type: iam.v1.serviceAccount
@@ -55,17 +74,30 @@ resources:
       location: us-central1
       storageClass: STANDARD
   
-  
-  # Create a pub/sub topic for our banned countries
-  - name: banned-countries-topic-hw10
-    type: pubsub.v1.topic
+
+  # give the bucket access to our mini-web bucket
+  - name: ds561-mini-web-hw10
+    type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
     properties:
-      topic: banned-countries-topic-hw10
-    accessControl:
-      gcpIamPolicy:
-        bindings:
-        - role: roles/pubsub.publisher
-          members: serviceAccount:$(ref.server-hw10.email)
+      bucket: $(ref.ds561-mini-web-hw10.name)
+      member: serviceAccount:$(ref.server-hw10.email)
+      role: roles/storage.admin
+
+
+  # give the service accounts permissions to access our bucket containing the flask app
+  - name: ds561-hw10-bucket
+    type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
+    properties:
+      bucket: ds561-hw10-bucket
+      member: serviceAccount:$(ref.server-hw10.email)
+      role: roles/storage.objectViewer
+
+  - name: ds561-hw10-forbidden-reqs-bucket
+    type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
+    properties:
+      bucket: ds561-hw10-bucket
+      member: serviceAccount:$(ref.ds561-hw10-forbidden-reqs-bucket.email)
+      role: roles/storage.objectViewer
 
 
   - name: web-server-vm
