@@ -33,6 +33,40 @@ resources:
       instance: $(ref.ds561-hw10-cloud-sql.name)
       charset: utf8
 
+  # Create a service account for the web server VM
+  - name: server-hw10
+    type: iam.v1.serviceAccount
+    properties:
+      accountId: server-hw10
+      displayName: server-hw10
+
+  # Create a service account for the forbidden countries VM
+  - name: forbidden-countries-hw10
+    type: iam.v1.serviceAccount
+    properties:
+      accountId: forbidden-countries-hw10
+      displayName: forbidden-countries-hw10
+  
+
+  # Make a storage bucket for storing our mini-web
+  - name: ds561-mini-web
+    type: storage.v1.bucket
+    properties:
+      location: us-central1
+      storageClass: STANDARD
+  
+  
+  # Create a pub/sub topic for our banned countries
+  - name: banned-countries-topic-hw10
+    type: pubsub.v1.topic
+    properties:
+      topic: banned-countries-topic-hw10
+    accessControl:
+      gcpIamPolicy:
+        bindings:
+        - role: roles/pubsub.publisher
+          members: serviceAccount:$(ref.server-hw10.email)
+
 
   - name: web-server-vm
     type: compute.v1.instance
