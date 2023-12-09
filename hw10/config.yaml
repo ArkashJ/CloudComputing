@@ -1,11 +1,11 @@
 resources:
   # make a service account with relevant permissions
-  - name: ds561-hw10-service-acc 
-    type: iam.v1.serviceAccount
-    properties:
-      accountId: ds561-hw10-service-acc 
-      displayName: ds561-hw10-service-acc
-      project: cloudcomputingcourse-398918
+  # - name: ds561-hw10-service-acc 
+  #   type: iam.v1.serviceAccount
+  #   properties:
+  #     accountId: ds561-hw10-service-acc 
+  #     displayName: ds561-hw10-service-acc
+  #     project: cloudcomputingcourse-398918
   
   # make a cloud sql instance
   - name: ds561-hw10-cloud-sql
@@ -20,7 +20,7 @@ resources:
         tier: db-custom-4-16384
         ipConfiguration:
           ipv4Enabled: true
-          privateNetwork: https://www.googleapis.com/compute/v1/projects/cloudcomputingcourse-398918/global/networks/default
+          #privateNetwork: https://www.googleapis.com/compute/v1/projects/cloudcomputingcourse-398918/global/networks/default
         backupConfiguration:
           enabled: true
           binaryLogEnabled: true
@@ -33,6 +33,8 @@ resources:
       instance: $(ref.ds561-hw10-cloud-sql.name)
       charset: utf8
 
+  #  ------------------- SERVICE ACCOUNT -----------------------------      
+
   # Create a service account for the web server VM
   - name: server-hw10
     type: iam.v1.serviceAccount
@@ -40,7 +42,24 @@ resources:
       accountId: server-hw10
       displayName: server-hw10
 
-  # Create a pub/sub topic for our banned countries
+    # Create a service account for the forbidden countries VM
+  - name: forbidden-countries-hw10
+    type: iam.v1.serviceAccount
+    properties:
+      accountId: forbidden-countries-hw10
+      displayName: forbidden-countries-hw10
+  
+  #  ------------------- STORAGE Bucket -----------------------------      
+  # Make a storage bucket for storing our mini-web
+  - name: ds561-mini-web-arkashjain-hw10
+    type: storage.v1.bucket
+    properties:
+      location: us-east4
+      storageClass: STANDARD
+ 
+  
+  #  ------------------- Pub/Sub -----------------------------
+# Create a pub/sub topic for our banned countries
   - name: banned-countries-topic-hw10
     type: pubsub.v1.topic
     properties:
@@ -59,62 +78,42 @@ resources:
       topic: $(ref.banned-countries-topic-hw10.name)
       ackDeadlineSeconds: 10
 
-  # Create a service account for the forbidden countries VM
-  - name: forbidden-countries-hw10
-    type: iam.v1.serviceAccount
-    properties:
-      accountId: forbidden-countries-hw10
-      displayName: forbidden-countries-hw10
-  
 
-  # Make a storage bucket for storing our mini-web
-  - name: ds561-mini-web
-    type: storage.v1.bucket
-    properties:
-      location: us-central1
-      storageClass: STANDARD
-  
-
-  # give the bucket access to our mini-web bucket
+  # give the service account permission to our mini-web bucket
   - name: ds561-mini-web-hw10
     type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
     properties:
-      bucket: $(ref.ds561-mini-web-hw10.name)
+      bucket: $(ref.ds561-mini-web-arkashjain-hw10.name)
       member: serviceAccount:$(ref.server-hw10.email)
       role: roles/storage.admin
 
-
-  # give the service accounts permissions to access our bucket containing the flask app
-  - name: ds561-hw10-bucket
+  # give the service account permission to our flask app 
+  - name: ds561-hw10-flask-binding
     type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
     properties:
-      bucket: ds561-hw10-bucket
+      bucket: hw-10-bucket
       member: serviceAccount:$(ref.server-hw10.email)
       role: roles/storage.objectViewer
-
   - name: ds561-hw10-forbidden-reqs-bucket
     type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
     properties:
-      bucket: ds561-hw10-bucket
-      member: serviceAccount:$(ref.ds561-hw10-forbidden-reqs-bucket.email)
+      bucket: hw-10-bucket
+      member: serviceAccount:$(ref.forbidden-countries-hw10.email)
       role: roles/storage.objectViewer
-
-
 
   # create a binding for allUsers to be able to view the contents of our mini-web bucket
   - name: mini-web-hw10-binding
     type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
     properties:
-      bucket: $(ref.ds561-mini-web-hw10.name)
+      bucket: $(ref.ds561-mini-web-arkashjain-hw10.name) 
       member: allUsers
       role: roles/storage.objectViewer
 
-
-  # create a binding for web-server-sa to have access to SQL instance
+  # create a binding for web-server to have access to SQL instance
   - name: ds561-sql-instance-hw10
     type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
     properties:
-      resource: ds561-trial-project
+      resource: cloudcomputingcourse-398918
       member: serviceAccount:$(ref.server-hw10.email)
       role: roles/cloudsql.client
 
@@ -122,7 +121,7 @@ resources:
   - name: cloud-logging-hw10-binding
     type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
     properties:
-      resource: ds561-trial-project
+      resource: cloudcomputingcourse-398918
       role: roles/logging.logWriter
       member: serviceAccount:$(ref.server-hw10.email)
 
@@ -130,7 +129,7 @@ resources:
   - name: forbidden-countries-subscription-hw10-binding
     type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
     properties:
-      resource: ds561-trial-project
+      resource: cloudcomputingcourse-398918
       member: serviceAccount:$(ref.forbidden-countries-hw10.email)
       role: roles/pubsub.subscriber
 
@@ -202,35 +201,49 @@ resources:
             python3 generate-content.py
             gsutil cp -r mini-web gs://ds561-mini-web-hw10
             waitress-serve --host=0.0.0.0 --port=8000 main:app &
-        
-            
+         
   - name: pubsub-vm
     type: compute.v1.instance
     properties:
       zone: us-central1-a
-      machineType: https://www.googleapis.com/compute/v1/projects/cloudcomputingcourse-398918/zones/us-central1-a/machineTypes/f1-micro
+      machineType: zones/us-central1-a/machineTypes/n1-standard-1
       disks:
       - deviceName: boot
         type: PERSISTENT
         boot: true
         autoDelete: true
         initializeParams:
-          sourceImage: https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/family/debian-11
+          sourceImage: projects/debian-cloud/global/images/family/debian-11
       networkInterfaces:
-      - network: https://www.googleapis.com/compute/v1/projects/cloudcomputingcourse-398918/global/networks/default
+      - network: global/networks/default
         accessConfigs:
         - name: External NAT
           type: ONE_TO_ONE_NAT
-    
-    # make a service account with relevant permissions
-  - name: env['name']
-    type: pubsub.v1.topic
-    properties:
-        topic: env['name']
-    accessControl:
-      gcpIamPolicy:
-        bindings:
-        - role: roles/pubsub.subscriber
-        members:
-         - "serviceAccount:$(ref.{{ properties['serviceAccountId'] }}.email)"
+          natIP: $(ref.web-server-hw10-ip.address)
+      tags:
+        items:
+        - allow-8000-hw10
+      serviceAccounts:
+      - email: $(ref.forbidden-countries-hw10.email)
+        scopes:
+          - https://www.googleapis.com/auth/cloud-platform
+          - https://www.googleapis.com/auth/pubsub
+      metadata:
+        dependsOn:
+          - $(ref.ds561-hw10-cloud-sql.name)
+        items:
+        - key: startup-script
+          value: |
+            #!/bin/bash
+            if [ -d "/home/arkjain/hw-10-bucket"]; then
+              echo "Bucket already exists"
+            else
+              gsutil mb gs://hw-10-bucket
+            fi
+            cd "home/arkjain/hw-10-bucket"
 
+
+            apt install python3-pip -y
+            pip3 install -r requirements.txt
+            
+            python3 banned_req.py 
