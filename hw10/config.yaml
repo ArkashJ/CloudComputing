@@ -100,27 +100,110 @@ resources:
       role: roles/storage.objectViewer
 
 
+
+  # create a binding for allUsers to be able to view the contents of our mini-web bucket
+  - name: mini-web-hw10-binding
+    type: gcp-types/storage-v1:virtual.buckets.iamMemberBinding
+    properties:
+      bucket: $(ref.ds561-mini-web-hw10.name)
+      member: allUsers
+      role: roles/storage.objectViewer
+
+
+  # create a binding for web-server-sa to have access to SQL instance
+  - name: ds561-sql-instance-hw10
+    type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
+    properties:
+      resource: ds561-trial-project
+      member: serviceAccount:$(ref.server-hw10.email)
+      role: roles/cloudsql.client
+
+  # create a binding for cloud logging
+  - name: cloud-logging-hw10-binding
+    type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
+    properties:
+      resource: ds561-trial-project
+      role: roles/logging.logWriter
+      member: serviceAccount:$(ref.server-hw10.email)
+
+  # create a binding for forbidden-countries-sa to have access to pubsub subscription
+  - name: forbidden-countries-subscription-hw10-binding
+    type: gcp-types/cloudresourcemanager-v1:virtual.projects.iamMemberBinding
+    properties:
+      resource: ds561-trial-project
+      member: serviceAccount:$(ref.forbidden-countries-hw10.email)
+      role: roles/pubsub.subscriber
+
+
+  - name: allow-8000-hw10
+    type: compute.v1.firewall
+    properties:
+      network: global/networks/default
+      targetTags:
+        - allow-8000-hw10
+      allowed:
+      - IPProtocol: TCP
+        ports:
+        - 8000
+
+  # create a static IP for our web server
+  - name : web-server-hw10-ip
+    type: compute.v1.address
+    properties:
+      region: us-central1
+
   - name: web-server-vm
     type: compute.v1.instance
     properties:
       zone: us-central1-a
-      machineType: https://www.googleapis.com/compute/v1/projects/cloudcomputingcourse-398918/zones/us-central1-a/machineTypes/f1-micro 
+      machineType: zones/us-central1-a/machineTypes/n1-standard-1
       disks:
       - deviceName: boot
         type: PERSISTENT
         boot: true
         autoDelete: true
         initializeParams:
-          sourceImage: https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/family/debian-11
+          sourceImage: projects/debian-cloud/global/images/family/debian-11
       networkInterfaces:
-      - network: https://www.googleapis.com/compute/v1/projects/cloudcomputingcourse-398918/global/networks/default
+      - network: global/networks/default
         accessConfigs:
         - name: External NAT
           type: ONE_TO_ONE_NAT
-    # make a startup script to install pub sub client
-    
-              
-              
+          natIP: $(ref.web-server-hw10-ip.address)
+      tags:
+        items:
+        - allow-8000-hw10
+      serviceAccounts:
+      - email: $(ref.server-hw10.email)
+        scopes:
+          - https://www.googleapis.com/auth/cloud-platform
+          - https://www.googleapis.com/auth/sqlservice.admin
+          - https://www.googleapis.com/auth/pubsub
+          - https://www.googleapis.com/auth/logging.write
+          - https://www.googleapis.com/auth/devstorage.read_only
+      metadata:
+          dependsOn:
+            - $(ref.ds561-hw10-cloud-sql.name)
+            - $(ref.allow-8000-hw10.name)
+      items:
+      - key: startup-script
+        value: |
+            #!/bin/bash
+            if [ -d "/home/arkjain/hw-10-bucket"]; then
+              echo "Bucket already exists"
+            else
+              gsutil mb gs://hw-10-bucket
+            fi
+            
+            cd "home/arkjain/hw-10-bucket"
+            apt install python3-pip -y
+            pip3 install -r requirements.txt
+            mkdir mini-web 
+            python3 generate-content.py
+            gsutil cp -r mini-web gs://ds561-mini-web-hw10
+            waitress-serve --host=0.0.0.0 --port=8000 main:app &
+        
+            
   - name: pubsub-vm
     type: compute.v1.instance
     properties:
